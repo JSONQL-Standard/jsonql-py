@@ -38,6 +38,7 @@ from .hydrator import ResultHydrator
 from .logger import ConsoleLogger, Logger, NoOpLogger
 from .parser import Parser, ParserOptions
 from .transpiler import SQLTranspiler
+from .mongo_transpiler import MongoTranspiler, MongoResult
 from .types import (
     DistinctOption,
     JsonQLField,

@@ -177,10 +177,22 @@ class SQLTranspiler:
             sql += " ORDER BY " + ", ".join(sort_parts)
 
         # 7. LIMIT / OFFSET
-        if query.limit is not None and query.limit > 0:
-            sql += f" LIMIT {query.limit}"
-        if query.offset is not None and query.offset > 0:
-            sql += f" OFFSET {query.offset}"
+        if self.dialect.name() == "mssql":
+            if query.limit is not None and query.limit > 0:
+                # MSSQL requires ORDER BY for OFFSET/FETCH; add default if missing
+                if not query.sort:
+                    sql += " ORDER BY (SELECT NULL)"
+                offset = query.offset if query.offset and query.offset > 0 else 0
+                sql += f" OFFSET {offset} ROWS FETCH NEXT {query.limit} ROWS ONLY"
+            elif query.offset is not None and query.offset > 0:
+                if not query.sort:
+                    sql += " ORDER BY (SELECT NULL)"
+                sql += f" OFFSET {query.offset} ROWS"
+        else:
+            if query.limit is not None and query.limit > 0:
+                sql += f" LIMIT {query.limit}"
+            if query.offset is not None and query.offset > 0:
+                sql += f" OFFSET {query.offset}"
 
         return TranspileResult(
             sql=self._replace_placeholders(sql),

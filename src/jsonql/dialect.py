@@ -77,10 +77,27 @@ class SQLiteDialect(SQLDialect):
         return False
 
 
+class MSSQLDialect(SQLDialect):
+    """Microsoft SQL Server dialect — ``@p1`` placeholders, ``[id]`` quoting, no RETURNING."""
+
+    def name(self) -> str:
+        return "mssql"
+
+    def placeholder(self, index: int) -> str:
+        return f"@p{index + 1}"
+
+    def quote_identifier(self, identifier: str) -> str:
+        return f"[{identifier}]"
+
+    def supports_returning(self) -> bool:
+        return False
+
+
 _DIALECTS: dict[str, type[SQLDialect]] = {
     "postgres": PostgresDialect,
     "mysql": MySQLDialect,
     "sqlite": SQLiteDialect,
+    "mssql": MSSQLDialect,
 }
 
 
