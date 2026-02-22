@@ -59,12 +59,39 @@ def _infer_mutation(http_method: str, raw: dict[str, Any]) -> dict[str, Any]:
     """Inject ``op`` into the raw query based on the HTTP method."""
     if "op" in raw:
         return raw
-    method = http_method.upper()
-    if method == "POST":
+
+    if "create" in raw:
         raw["op"] = "create"
-    elif method in ("PUT", "PATCH"):
+        if "data" not in raw:
+            raw["data"] = raw.get("create")
+        return raw
+    if "update" in raw:
         raw["op"] = "update"
-    elif method == "DELETE":
+        if "patch" not in raw:
+            raw["patch"] = raw.get("update")
+        return raw
+    if "delete" in raw:
+        raw["op"] = "delete"
+        return raw
+
+    upsert = raw.get("upsert")
+    if isinstance(upsert, dict):
+        if "where" in upsert and "update" in upsert:
+            raw["op"] = "update"
+            raw["where"] = upsert["where"]
+            raw["patch"] = upsert["update"]
+            return raw
+        if "create" in upsert:
+            raw["op"] = "create"
+            raw["data"] = upsert["create"]
+            return raw
+
+    method = http_method.upper()
+    if method == "POST" and "data" in raw:
+        raw["op"] = "create"
+    elif method in ("PUT", "PATCH") and ("patch" in raw or "where" in raw):
+        raw["op"] = "update"
+    elif method == "DELETE" and "where" in raw:
         raw["op"] = "delete"
     return raw
 

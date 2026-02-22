@@ -28,6 +28,10 @@ class SQLDialect(ABC):
     def supports_returning(self) -> bool:
         """Whether the dialect supports ``RETURNING *`` on INSERT/UPDATE."""
 
+    @abstractmethod
+    def get_limit_offset(self, limit: int, offset: int) -> str:
+        """Return the LIMIT/OFFSET clause for the dialect."""
+
 
 class PostgresDialect(SQLDialect):
     """PostgreSQL dialect — ``$1`` placeholders, ``"id"`` quoting, RETURNING."""
@@ -43,6 +47,16 @@ class PostgresDialect(SQLDialect):
 
     def supports_returning(self) -> bool:
         return True
+
+    def get_limit_offset(self, limit: int, offset: int) -> str:
+        if limit == 0 and offset == 0:
+            return "LIMIT 0"
+        parts: list[str] = []
+        if limit > 0:
+            parts.append(f"LIMIT {limit}")
+        if offset > 0:
+            parts.append(f"OFFSET {offset}")
+        return " ".join(parts)
 
 
 class MySQLDialect(SQLDialect):
@@ -60,6 +74,19 @@ class MySQLDialect(SQLDialect):
     def supports_returning(self) -> bool:
         return False
 
+    def get_limit_offset(self, limit: int, offset: int) -> str:
+        if limit == 0 and offset == 0:
+            return "LIMIT 0"
+        parts: list[str] = []
+        if limit > 0:
+            parts.append(f"LIMIT {limit}")
+        elif offset > 0:
+            # MySQL requires LIMIT before OFFSET; use large number for unlimited
+            parts.append("LIMIT 18446744073709551615")
+        if offset > 0:
+            parts.append(f"OFFSET {offset}")
+        return " ".join(parts)
+
 
 class SQLiteDialect(SQLDialect):
     """SQLite dialect — ``?`` placeholders, ``"id"`` quoting, no RETURNING."""
@@ -76,6 +103,19 @@ class SQLiteDialect(SQLDialect):
     def supports_returning(self) -> bool:
         return False
 
+    def get_limit_offset(self, limit: int, offset: int) -> str:
+        if limit == 0 and offset == 0:
+            return "LIMIT 0"
+        parts: list[str] = []
+        if limit > 0:
+            parts.append(f"LIMIT {limit}")
+        elif offset > 0:
+            # SQLite requires LIMIT before OFFSET; use -1 for unlimited
+            parts.append("LIMIT -1")
+        if offset > 0:
+            parts.append(f"OFFSET {offset}")
+        return " ".join(parts)
+
 
 class MSSQLDialect(SQLDialect):
     """Microsoft SQL Server dialect — ``@p1`` placeholders, ``[id]`` quoting, no RETURNING."""
@@ -91,6 +131,16 @@ class MSSQLDialect(SQLDialect):
 
     def supports_returning(self) -> bool:
         return False
+
+    def get_limit_offset(self, limit: int, offset: int) -> str:
+        if limit == 0 and offset == 0:
+            return "OFFSET 0 ROWS FETCH NEXT 0 ROWS ONLY"
+        if limit > 0:
+            off = offset if offset > 0 else 0
+            return f"OFFSET {off} ROWS FETCH NEXT {limit} ROWS ONLY"
+        if offset > 0:
+            return f"OFFSET {offset} ROWS"
+        return ""
 
 
 _DIALECTS: dict[str, type[SQLDialect]] = {

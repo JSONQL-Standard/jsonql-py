@@ -91,6 +91,7 @@ class JsonQLTable:
 
     fields: dict[str, JsonQLField] = field(default_factory=dict)
     relations: dict[str, JsonQLRelation] = field(default_factory=dict)
+    primary_key: str = "id"
 
 
 @dataclass
@@ -175,6 +176,10 @@ def parse_schema(raw: dict[str, Any]) -> JsonQLSchema:
                 target=rraw.get("target", ""),
                 allow_include=rraw.get("allowInclude"),
             )
-        tables[table_name] = JsonQLTable(fields=fields, relations=relations)
+        tables[table_name] = JsonQLTable(
+            fields=fields,
+            relations=relations,
+            primary_key=table_raw.get("primaryKey", "id"),
+        )
 
     return JsonQLSchema(tables=tables, settings=settings)

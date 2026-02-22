@@ -78,6 +78,9 @@ class SQLTranspiler:
         # 1. Fields
         if query.fields:
             for f in query.fields:
+                if f == "*":
+                    select_parts.append(f"{q(table_name)}.*")
+                    continue
                 if not _is_valid_identifier(f):
                     raise JsonQLTranspileError(f"Invalid field name: {f}")
                 select_parts.append(f"{q(table_name)}.{q(f)}")
@@ -189,10 +192,11 @@ class SQLTranspiler:
                     sql += " ORDER BY (SELECT NULL)"
                 sql += f" OFFSET {query.offset} ROWS"
         else:
-            if query.limit is not None and query.limit > 0:
-                sql += f" LIMIT {query.limit}"
-            if query.offset is not None and query.offset > 0:
-                sql += f" OFFSET {query.offset}"
+            limit_val = query.limit if query.limit is not None else -1
+            offset_val = query.offset if query.offset is not None else 0
+            clause = self.dialect.get_limit_offset(limit_val, offset_val)
+            if clause:
+                sql += f" {clause}"
 
         return TranspileResult(
             sql=self._replace_placeholders(sql),
@@ -401,21 +405,50 @@ class SQLTranspiler:
         args: list[Any] = []
 
         for field_name, cond in where.items():
-            # OR clause
-            if field_name == "or":
+            # OR clause — recursively process each sub-where
+            if field_name in ("or", "OR"):
                 if isinstance(cond, list):
                     or_conds: list[str] = []
                     for item in cond:
                         if isinstance(item, dict):
-                            for k, v in item.items():
-                                if not _is_valid_identifier(k):
-                                    raise JsonQLTranspileError(
-                                        f"Invalid field name in OR clause: {k}"
-                                    )
-                                or_conds.append(f"{q(table_alias)}.{q(k)} = ?")
-                                args.append(v)
+                            sub_conds, sub_args = self._process_where(
+                                item, table_alias
+                            )
+                            if sub_conds:
+                                or_conds.append(
+                                    "(" + " AND ".join(sub_conds) + ")"
+                                )
+                                args.extend(sub_args)
                     if or_conds:
                         conditions.append("(" + " OR ".join(or_conds) + ")")
+                continue
+
+            # AND clause — recursively process each sub-where
+            if field_name in ("and", "AND"):
+                if isinstance(cond, list):
+                    for item in cond:
+                        if isinstance(item, dict):
+                            sub_conds, sub_args = self._process_where(
+                                item, table_alias
+                            )
+                            if sub_conds:
+                                conditions.append(
+                                    "(" + " AND ".join(sub_conds) + ")"
+                                )
+                                args.extend(sub_args)
+                continue
+
+            # NOT clause — recursively process the sub-where and negate
+            if field_name in ("not", "NOT"):
+                if isinstance(cond, dict):
+                    sub_conds, sub_args = self._process_where(
+                        cond, table_alias
+                    )
+                    if sub_conds:
+                        conditions.append(
+                            "NOT (" + " AND ".join(sub_conds) + ")"
+                        )
+                        args.extend(sub_args)
                 continue
 
             if not _is_valid_identifier(field_name):
@@ -424,9 +457,52 @@ class SQLTranspiler:
                 )
 
             if isinstance(cond, dict):
+                known_ops = {
+                    "eq",
+                    "neq",
+                    "ne",
+                    "gt",
+                    "gte",
+                    "lt",
+                    "lte",
+                    "like",
+                    "in",
+                    "nin",
+                    "contains",
+                    "starts",
+                    "ends",
+                }
+                for op_name in cond.keys():
+                    if op_name not in known_ops:
+                        raise JsonQLTranspileError(f"Unknown operator {op_name}")
+
+                def field_ref_expr(value: Any) -> str | None:
+                    if not isinstance(value, dict):
+                        return None
+                    ref = value.get("field")
+                    if not isinstance(ref, str):
+                        return None
+                    if "." in ref:
+                        rel, col = ref.split(".", 1)
+                        if not _is_valid_identifier(rel) or not _is_valid_identifier(col):
+                            raise JsonQLTranspileError(
+                                f"Invalid field reference: {ref}"
+                            )
+                        return f"{q(rel)}.{q(col)}"
+                    if not _is_valid_identifier(ref):
+                        raise JsonQLTranspileError(
+                            f"Invalid field reference: {ref}"
+                        )
+                    return f"{q(table_alias)}.{q(ref)}"
+
                 if "eq" in cond:
                     v = cond["eq"]
-                    if v is None:
+                    ref_expr = field_ref_expr(v)
+                    if ref_expr is not None:
+                        conditions.append(
+                            f"{q(table_alias)}.{q(field_name)} = {ref_expr}"
+                        )
+                    elif v is None:
                         conditions.append(
                             f"{q(table_alias)}.{q(field_name)} IS NULL"
                         )
@@ -435,9 +511,14 @@ class SQLTranspiler:
                             f"{q(table_alias)}.{q(field_name)} = ?"
                         )
                         args.append(v)
-                if "neq" in cond:
-                    v = cond["neq"]
-                    if v is None:
+                if "neq" in cond or "ne" in cond:
+                    v = cond.get("neq", cond.get("ne"))
+                    ref_expr = field_ref_expr(v)
+                    if ref_expr is not None:
+                        conditions.append(
+                            f"{q(table_alias)}.{q(field_name)} != {ref_expr}"
+                        )
+                    elif v is None:
                         conditions.append(
                             f"{q(table_alias)}.{q(field_name)} IS NOT NULL"
                         )
@@ -447,17 +528,33 @@ class SQLTranspiler:
                         )
                         args.append(v)
                 if "gt" in cond:
-                    conditions.append(f"{q(table_alias)}.{q(field_name)} > ?")
-                    args.append(cond["gt"])
+                    ref_expr = field_ref_expr(cond["gt"])
+                    if ref_expr is not None:
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} > {ref_expr}")
+                    else:
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} > ?")
+                        args.append(cond["gt"])
                 if "gte" in cond:
-                    conditions.append(f"{q(table_alias)}.{q(field_name)} >= ?")
-                    args.append(cond["gte"])
+                    ref_expr = field_ref_expr(cond["gte"])
+                    if ref_expr is not None:
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} >= {ref_expr}")
+                    else:
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} >= ?")
+                        args.append(cond["gte"])
                 if "lt" in cond:
-                    conditions.append(f"{q(table_alias)}.{q(field_name)} < ?")
-                    args.append(cond["lt"])
+                    ref_expr = field_ref_expr(cond["lt"])
+                    if ref_expr is not None:
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} < {ref_expr}")
+                    else:
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} < ?")
+                        args.append(cond["lt"])
                 if "lte" in cond:
-                    conditions.append(f"{q(table_alias)}.{q(field_name)} <= ?")
-                    args.append(cond["lte"])
+                    ref_expr = field_ref_expr(cond["lte"])
+                    if ref_expr is not None:
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} <= {ref_expr}")
+                    else:
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} <= ?")
+                        args.append(cond["lte"])
                 if "like" in cond:
                     conditions.append(
                         f"{q(table_alias)}.{q(field_name)} LIKE ?"
@@ -471,6 +568,29 @@ class SQLTranspiler:
                             f"{q(table_alias)}.{q(field_name)} IN ({placeholders})"
                         )
                         args.extend(vals)
+                if "nin" in cond:
+                    vals = cond["nin"]
+                    if isinstance(vals, list) and vals:
+                        placeholders = ", ".join(["?"] * len(vals))
+                        conditions.append(
+                            f"{q(table_alias)}.{q(field_name)} NOT IN ({placeholders})"
+                        )
+                        args.extend(vals)
+                if "contains" in cond:
+                    conditions.append(
+                        f"{q(table_alias)}.{q(field_name)} LIKE ?"
+                    )
+                    args.append(f"%{cond['contains']}%")
+                if "starts" in cond:
+                    conditions.append(
+                        f"{q(table_alias)}.{q(field_name)} LIKE ?"
+                    )
+                    args.append(f"{cond['starts']}%")
+                if "ends" in cond:
+                    conditions.append(
+                        f"{q(table_alias)}.{q(field_name)} LIKE ?"
+                    )
+                    args.append(f"%{cond['ends']}")
             else:
                 # Shorthand: {"field": value} → eq
                 if cond is None:

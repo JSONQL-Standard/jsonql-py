@@ -69,12 +69,16 @@ class ResultHydrator:
         if not rows:
             return []
 
-        # Group by ID
+        # Determine primary key from schema (default to "id")
+        table_def = schema.tables.get(table_name)
+        pk = table_def.primary_key if table_def else "id"
+
+        # Group by primary key
         groups: dict[Any, list[dict[str, Any]]] = {}
         order: list[Any] = []
 
         for row in rows:
-            row_id = row.get("id", id(row))
+            row_id = row.get(pk, id(row))
             if row_id not in groups:
                 order.append(row_id)
                 groups[row_id] = []
@@ -111,16 +115,18 @@ class ResultHydrator:
                         continue
 
                     sub_rows: list[dict[str, Any]] = []
+                    target_table = rel_def.target or rel_name
+                    target_def = schema.tables.get(target_table)
+                    child_pk = target_def.primary_key if target_def else "id"
                     for r in group_rows:
                         val = r.get(rel_name)
-                        if isinstance(val, dict) and self._is_valid_row(val):
+                        if isinstance(val, dict) and self._is_valid_row(val, child_pk):
                             sub_rows.append(val)
                         elif isinstance(val, list):
                             for item in val:
-                                if isinstance(item, dict) and self._is_valid_row(item):
+                                if isinstance(item, dict) and self._is_valid_row(item, child_pk):
                                     sub_rows.append(item)
 
-                    target_table = rel_def.target or rel_name
                     merged_sub = self._merge_rows(sub_rows, schema, target_table)
 
                     if rel_def.type == "hasMany":
@@ -147,9 +153,9 @@ class ResultHydrator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _is_valid_row(row: dict[str, Any]) -> bool:
-        if "id" in row:
-            return row["id"] is not None
+    def _is_valid_row(row: dict[str, Any], pk: str = "id") -> bool:
+        if pk in row:
+            return row[pk] is not None
         return any(v is not None for v in row.values())
 
     @staticmethod
@@ -161,9 +167,10 @@ class ResultHydrator:
         if len(merged) != 1:
             return False
         row = merged[0]
-        if "id" in row:
-            return False
         target_def = schema.tables.get(target_table)
+        pk = target_def.primary_key if target_def else "id"
+        if pk in row:
+            return False
         if target_def is None:
             return False
         return all(k not in target_def.fields for k in row)
