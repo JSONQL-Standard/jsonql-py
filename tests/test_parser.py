@@ -133,3 +133,43 @@ class TestParser:
         assert q.sort == ["-total"]
         assert q.group_by == ["status"]
         assert q.aggregate == {"totalSum": {"sum": "total"}}
+
+    # ------------------------------------------------------------------
+    # Include normalisation
+    # ------------------------------------------------------------------
+
+    def test_parse_include_array(self) -> None:
+        parser = Parser()
+        q = parser.parse({"include": ["posts", "comments"]})
+        assert isinstance(q, JsonQLQuery)
+        assert q.include == {"posts": {}, "comments": {}}
+
+    def test_parse_include_dict(self) -> None:
+        parser = Parser()
+        q = parser.parse({"include": {"posts": {"fields": ["id"]}}})
+        assert isinstance(q, JsonQLQuery)
+        assert q.include == {"posts": {"fields": ["id"]}}
+
+    # ------------------------------------------------------------------
+    # Input validation
+    # ------------------------------------------------------------------
+
+    def test_negative_limit_rejected(self) -> None:
+        parser = Parser()
+        with pytest.raises(ValueError, match="non-negative"):
+            parser.parse({"limit": -1})
+
+    def test_negative_skip_rejected(self) -> None:
+        parser = Parser()
+        with pytest.raises(ValueError, match="non-negative"):
+            parser.parse({"skip": -5})
+
+    def test_negative_offset_rejected(self) -> None:
+        parser = Parser()
+        with pytest.raises(ValueError, match="non-negative"):
+            parser.parse({"offset": -3})
+
+    def test_unknown_key_rejected(self) -> None:
+        parser = Parser()
+        with pytest.raises(ValueError, match="Unknown property"):
+            parser.parse({"fields": ["id"], "magic": True})

@@ -276,6 +276,17 @@ class SQLTranspiler:
                         select_parts.append(
                             f"{q(current_alias)}.{q(f)} AS {q(alias)}"
                         )
+            else:
+                # No explicit fields — select all columns from the target table schema
+                target_def = schema.tables.get(target_table)
+                if target_def and target_def.fields:
+                    for f in target_def.fields:
+                        alias = f"{current_hydrator}__{f}"
+                        select_parts.append(
+                            f"{q(current_alias)}.{q(f)} AS {q(alias)}"
+                        )
+                else:
+                    select_parts.append(f"{q(current_alias)}.*")
 
             # Aggregates (subqueries)
             if "aggregate" in rel_config and isinstance(rel_config["aggregate"], dict):

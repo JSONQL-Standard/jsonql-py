@@ -56,12 +56,39 @@ class Parser:
     # Internal
     # ------------------------------------------------------------------
 
+    # Keys allowed in a query object
+    _QUERY_KEYS = frozenset({
+        "version", "from", "where", "sort", "limit", "skip", "offset",
+        "fields", "include", "groupBy", "distinct", "aggregate",
+    })
+
     def _parse_query(
         self,
         raw: dict[str, Any],
         schema: JsonQLSchema | None,
         table: str,
     ) -> JsonQLQuery:
+        # Reject unknown top-level keys
+        for key in raw:
+            if key not in self._QUERY_KEYS:
+                raise ValueError(f'Unknown property "{key}" in query')
+
+        # Validate limit / skip
+        raw_limit = raw.get("limit")
+        if raw_limit is not None:
+            if not isinstance(raw_limit, (int, float)) or raw_limit < 0:
+                raise ValueError("limit must be a non-negative number")
+
+        raw_skip = raw.get("skip")
+        if raw_skip is not None:
+            if not isinstance(raw_skip, (int, float)) or raw_skip < 0:
+                raise ValueError("skip must be a non-negative number")
+
+        raw_offset = raw.get("offset")
+        if raw_offset is not None:
+            if not isinstance(raw_offset, (int, float)) or raw_offset < 0:
+                raise ValueError("offset must be a non-negative number")
+
         # Normalise sort: string → list
         sort_raw = raw.get("sort", [])
         if isinstance(sort_raw, str):
@@ -71,17 +98,22 @@ class Parser:
         if "distinct" in raw:
             distinct = DistinctOption.from_raw(raw["distinct"])
 
+        # Normalise include: array → dict
+        include_raw = raw.get("include", {})
+        if isinstance(include_raw, list):
+            include_raw = {rel: {} for rel in include_raw}
+
         query = JsonQLQuery(
             version=raw.get("version", "1.0"),
             from_table=raw.get("from", table or ""),
             fields=raw.get("fields", []),
             where=raw.get("where"),
             sort=sort_raw,
-            limit=raw.get("limit"),
-            offset=raw.get("offset") or raw.get("skip"),
+            limit=raw_limit,
+            offset=raw_offset or raw_skip,
             aggregate=raw.get("aggregate", {}),
             group_by=raw.get("groupBy", []),
-            include=raw.get("include", {}),
+            include=include_raw,
             distinct=distinct,
         )
         self._validate_options(query)
