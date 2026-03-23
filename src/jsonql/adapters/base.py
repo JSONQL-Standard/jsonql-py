@@ -55,6 +55,14 @@ class AdapterOptions:
     after_delete: Hook | None = None
 
 
+# Re-export public helpers from mongo_base (shared between SQL and MongoDB)
+from .mongo_base import (
+    build_rest_mutation,
+    get_id_from_query,
+    infer_mutation,
+)
+
+
 def _infer_mutation(http_method: str, raw: dict[str, Any]) -> dict[str, Any]:
     """Inject ``op`` into the raw query based on the HTTP method."""
     if "op" in raw:

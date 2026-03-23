@@ -83,8 +83,8 @@ class MongoTranspiler:
         if query.offset is not None and query.offset > 0:
             result.skip = query.offset
 
-        # AGGREGATE -> aggregation pipeline
-        if query.aggregate:
+        # DISTINCT -> aggregation pipeline
+        if query.distinct and (query.distinct.all or query.distinct.fields):
             result.operation = "aggregate"
             pipeline: list[dict[str, Any]] = []
 
@@ -92,8 +92,56 @@ class MongoTranspiler:
             if result.filter:
                 pipeline.append({"$match": result.filter})
 
+            # Determine distinct fields
+            if query.distinct.fields:
+                distinct_fields = query.distinct.fields
+            elif query.fields:
+                distinct_fields = list(query.fields)
+            else:
+                distinct_fields = []
+
+            if distinct_fields:
+                # $group by distinct fields as _id
+                group_id = {f: f"${f}" for f in distinct_fields}
+                group_stage: dict[str, Any] = {"_id": group_id}
+                pipeline.append({"$group": group_stage})
+
+                # $project to flatten _id back into fields
+                project_stage = {"_id": 0}
+                for f in distinct_fields:
+                    project_stage[f] = f"$_id.{f}"
+                # Also project non-distinct selected fields
+                if query.fields:
+                    for f in query.fields:
+                        if f not in distinct_fields:
+                            project_stage[f] = 1
+                pipeline.append({"$project": project_stage})
+
+            # $sort stage
+            if result.sort:
+                sort_doc = {k: v for k, v in result.sort}
+                pipeline.append({"$sort": sort_doc})
+
+            # $skip / $limit stages
+            if result.skip:
+                pipeline.append({"$skip": result.skip})
+            if result.limit:
+                pipeline.append({"$limit": result.limit})
+
+            result.pipeline = pipeline
+            return result
+
+        # AGGREGATE -> aggregation pipeline
+        if query.aggregate:
+            result.operation = "aggregate"
+            pipeline = []
+
+            # $match stage
+            if result.filter:
+                pipeline.append({"$match": result.filter})
+
             # $group stage
-            group_stage: dict[str, Any] = {}
+            group_stage = {}
             if query.group_by:
                 group_id = {g: f"${g}" for g in query.group_by}
                 group_stage["_id"] = group_id
@@ -188,15 +236,34 @@ class MongoTranspiler:
 
         raise JsonQLTranspileError(f"Unknown mutation op: {mutation.op}")
 
+    _KNOWN_OPS = frozenset({
+        "eq", "ne", "neq", "gt", "gte", "lt", "lte",
+        "in", "nin", "like", "contains", "starts", "ends",
+    })
+
     def _process_where(self, where: dict[str, Any]) -> dict[str, Any]:
         filt: dict[str, Any] = {}
 
         for field_name, cond in where.items():
-            if field_name == "or":
+            # --- logical operators ---
+            if field_name in ("or", "OR"):
                 if isinstance(cond, list):
                     or_conditions = [self._process_where(item) for item in cond if isinstance(item, dict)]
                     if or_conditions:
                         filt["$or"] = or_conditions
+                continue
+
+            if field_name in ("and", "AND"):
+                if isinstance(cond, list):
+                    and_conditions = [self._process_where(item) for item in cond if isinstance(item, dict)]
+                    if and_conditions:
+                        filt["$and"] = and_conditions
+                continue
+
+            if field_name in ("not", "NOT"):
+                if isinstance(cond, dict):
+                    not_filter = self._process_where(cond)
+                    filt["$nor"] = [not_filter]
                 continue
 
             if not _is_valid_identifier(field_name):
@@ -205,10 +272,19 @@ class MongoTranspiler:
                 )
 
             if isinstance(cond, dict):
+                # Validate operators
+                for op_key in cond:
+                    if op_key not in self._KNOWN_OPS:
+                        raise JsonQLTranspileError(
+                            f"Unknown operator '{op_key}' for field '{field_name}'"
+                        )
+
                 mongo_op: dict[str, Any] = {}
                 if "eq" in cond:
                     filt[field_name] = cond["eq"]
                     continue
+                if "ne" in cond:
+                    mongo_op["$ne"] = cond["ne"]
                 if "neq" in cond:
                     mongo_op["$ne"] = cond["neq"]
                 if "gt" in cond:
@@ -223,10 +299,23 @@ class MongoTranspiler:
                     pattern = str(cond["like"]).replace("%", ".*").replace("_", ".")
                     mongo_op["$regex"] = pattern
                     mongo_op["$options"] = "i"
+                if "contains" in cond:
+                    mongo_op["$regex"] = re.escape(str(cond["contains"]))
+                    mongo_op["$options"] = "i"
+                if "starts" in cond:
+                    mongo_op["$regex"] = f"^{re.escape(str(cond['starts']))}"
+                    mongo_op["$options"] = "i"
+                if "ends" in cond:
+                    mongo_op["$regex"] = f"{re.escape(str(cond['ends']))}$"
+                    mongo_op["$options"] = "i"
                 if "in" in cond:
                     vals = cond["in"]
                     if isinstance(vals, list):
                         mongo_op["$in"] = vals
+                if "nin" in cond:
+                    vals = cond["nin"]
+                    if isinstance(vals, list):
+                        mongo_op["$nin"] = vals
                 if mongo_op:
                     filt[field_name] = mongo_op
             else:

@@ -34,11 +34,21 @@ from .errors import (
     JsonQLTranspileError,
     JsonQLValidationError,
 )
+from .factory import (
+    connect_mongo,
+    create_driver,
+    create_driver_with_dsn,
+    env_or,
+    load_schema,
+    must_connect_mongo,
+    must_load_schema,
+)
 from .hydrator import ResultHydrator
 from .logger import ConsoleLogger, Logger, NoOpLogger
+from .mongo_driver import MongoDBDriver
+from .mongo_transpiler import MongoResult, MongoTranspiler
 from .parser import Parser, ParserOptions
 from .transpiler import SQLTranspiler
-from .mongo_transpiler import MongoTranspiler, MongoResult
 from .types import (
     DistinctOption,
     JsonQLField,
@@ -104,6 +114,18 @@ __all__ = [
     # Engine / Driver
     "DatabaseDriver",
     "JsonQLEngine",
+    # MongoDB
+    "MongoTranspiler",
+    "MongoResult",
+    "MongoDBDriver",
+    # Factory / Helpers
+    "env_or",
+    "load_schema",
+    "must_load_schema",
+    "create_driver",
+    "create_driver_with_dsn",
+    "connect_mongo",
+    "must_connect_mongo",
     # Errors
     "JsonQLError",
     "JsonQLValidationError",
