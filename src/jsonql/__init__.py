@@ -29,6 +29,7 @@ from .dialect import (
 from .driver import DatabaseDriver
 from .engine import JsonQLEngine
 from .errors import (
+    AdapterError,
     JsonQLError,
     JsonQLExecutionError,
     JsonQLTranspileError,
@@ -131,6 +132,7 @@ __all__ = [
     "JsonQLValidationError",
     "JsonQLTranspileError",
     "JsonQLExecutionError",
+    "AdapterError",
     # Logger
     "Logger",
     "ConsoleLogger",

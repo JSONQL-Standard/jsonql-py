@@ -173,6 +173,30 @@ def must_connect_mongo(uri: str, db_name: str) -> Any:
 # ---------------------------------------------------------------------------
 
 
+def _normalize_numeric_rows(rows: list[dict[str, Any]]) -> None:
+    """In-place normalise numeric types so results are JSON-safe.
+
+    * ``Decimal`` → ``int`` (if whole) or ``float``  (psycopg2, mysql-connector)
+    * ``float``   → ``int`` (if whole)               (sqlite3)
+
+    Recurses into nested dicts and lists for hydrated / joined results.
+    """
+    from decimal import Decimal
+
+    for row in rows:
+        for key, val in row.items():
+            if isinstance(val, Decimal):
+                row[key] = int(val) if val == int(val) else float(val)
+            elif isinstance(val, float) and val == int(val):
+                row[key] = int(val)
+            elif isinstance(val, dict):
+                _normalize_numeric_rows([val])
+            elif isinstance(val, list):
+                for item in val:
+                    if isinstance(item, dict):
+                        _normalize_numeric_rows([item])
+
+
 class _SyncDatabaseDriver:
     """Synchronous database driver that wraps stdlib/third-party DB drivers.
 
@@ -189,7 +213,9 @@ class _SyncDatabaseDriver:
         return self._dialect_name
 
     async def query(self, sql: str, params: list[Any]) -> list[dict[str, Any]]:
-        return self._query_sync(sql, params)
+        rows = self._query_sync(sql, params)
+        _normalize_numeric_rows(rows)
+        return rows
 
     def _query_sync(self, sql: str, params: list[Any]) -> list[dict[str, Any]]:
         raise NotImplementedError

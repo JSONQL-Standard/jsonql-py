@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..errors import AdapterError, JsonQLError
 from .base import AdapterOptions, BaseHandler
 
 
@@ -44,12 +45,21 @@ def create_fastapi_router(
     )
     async def handle(request: Request, path: str = "") -> JSONResponse:
         try:
-            raw_input = await request.json()
-        except Exception:
-            raw_input = {}
-        result, status = await handler.process_request(
-            raw_input, request, request.method, path
-        )
-        return JSONResponse(content=result, status_code=status)
+            try:
+                raw_input = await request.json()
+            except Exception:
+                raw_input = {}
+            result, status = await handler.process_request(
+                raw_input, request, request.method, path
+            )
+            return JSONResponse(content=result, status_code=status)
+        except AdapterError as exc:
+            return JSONResponse(content={"error": str(exc)}, status_code=exc.status)
+        except (ValueError, TypeError, JsonQLError) as exc:
+            return JSONResponse(content={"error": str(exc)}, status_code=400)
+        except Exception as exc:
+            if handler.logger:
+                handler.logger.error(f"[JSONQL] Unhandled error: {exc}")
+            return JSONResponse(content={"error": str(exc)}, status_code=500)
 
     return router

@@ -39,3 +39,25 @@ class JsonQLExecutionError(JsonQLError):
     def __init__(self, message: str, cause: Exception | None = None) -> None:
         super().__init__(message, "EXECUTION_ERROR")
         self.__cause__ = cause
+
+
+class AdapterError(JsonQLError):
+    """HTTP-aware error for adapter pipelines.
+
+    Raise this from lifecycle hooks to abort the request and return a
+    specific HTTP status code.  Framework adapters (Flask, FastAPI, Django)
+    catch this automatically and produce a ``{"error": "…"}`` JSON response.
+
+    Example::
+
+        from jsonql.errors import AdapterError
+
+        def before_create(statement, ctx):
+            if not ctx.user.is_admin:
+                raise AdapterError(403, "Admin access required")
+            return statement
+    """
+
+    def __init__(self, status: int, message: str) -> None:
+        super().__init__(message, "ADAPTER_ERROR")
+        self.status = status

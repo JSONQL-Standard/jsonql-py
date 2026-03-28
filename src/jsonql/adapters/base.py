@@ -36,6 +36,11 @@ class AdapterOptions:
 
     tables: list[str] | dict[str, str] | None = None
 
+    # Mutation status resolver — determines HTTP status for mutations.
+    # Signature: (op: str, context: Any) -> int
+    # Default behaviour (when None): 201 for "create", 200 for update/delete.
+    mutation_status: Callable[[str, Any], int] | None = None
+
     # Lifecycle hooks
     before_parse: Hook | None = None
     after_parse: Hook | None = None
@@ -251,7 +256,15 @@ class BaseHandler:
                     data = await _await_maybe(self.options.after_delete(data, context))
                 if self.options.after_query:
                     data = await _await_maybe(self.options.after_query(data, context))
-                return data, 200
+
+                # Determine HTTP status: custom resolver → default 200
+                if self.options.mutation_status:
+                    status = await _await_maybe(
+                        self.options.mutation_status(statement.op or "", context)
+                    )
+                else:
+                    status = 200
+                return data, status
 
             # Hydrate
             if self.hydrator:
