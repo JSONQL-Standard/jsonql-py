@@ -17,9 +17,30 @@ Usage::
 from __future__ import annotations
 
 import asyncio
+import json as _json
 from typing import Any
 
 from .base import AdapterOptions, BaseHandler
+
+
+def _extract_raw_input(request: Any) -> Any:
+    """Extract the JSONQL query from a Flask request.
+
+    - GET with ``?q=<json>`` → parse the JSON string
+    - GET without ``q``      → use query params as dict
+    - POST/PUT/PATCH/DELETE  → use the JSON body
+    """
+    if request.method == "GET":
+        q = request.args.get("q")
+        if q:
+            try:
+                return _json.loads(q)
+            except (ValueError, _json.JSONDecodeError):
+                return q  # let the parser deal with invalid JSON
+        if request.args:
+            return dict(request.args)
+        return {}
+    return request.get_json(silent=True) or {}
 
 
 def create_flask_blueprint(
@@ -44,7 +65,7 @@ def create_flask_blueprint(
     @bp.route("/", defaults={"path": ""}, methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     @bp.route("/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     def handle(path: str) -> Any:
-        raw_input = request.get_json(silent=True) or {}
+        raw_input = _extract_raw_input(request)
         result, status = _run(
             handler.process_request(raw_input, request, request.method, path)
         )

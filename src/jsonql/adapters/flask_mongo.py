@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from .flask_adapter import _extract_raw_input
 from .mongo_base import MongoAdapterOptions, MongoBaseHandler
 
 
@@ -47,7 +48,7 @@ def create_flask_mongo_blueprint(
     @bp.route("/", defaults={"path": ""}, methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     @bp.route("/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     def handle(path: str) -> Any:
-        raw_input = request.get_json(silent=True) or {}
+        raw_input = _extract_raw_input(request)
         result, status = _run(
             handler.process_request(raw_input, request, request.method, path)
         )
