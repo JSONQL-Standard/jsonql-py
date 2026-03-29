@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from ..errors import AdapterError, JsonQLError
 from .flask_adapter import _extract_raw_input
 from .mongo_base import MongoAdapterOptions, MongoBaseHandler
 
@@ -48,12 +49,21 @@ def create_flask_mongo_blueprint(
     @bp.route("/", defaults={"path": ""}, methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     @bp.route("/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     def handle(path: str) -> Any:
-        raw_input = _extract_raw_input(request)
-        result, status = _run(
-            handler.process_request(raw_input, request, request.method, path)
-        )
-        if result is None:
-            return jsonify(None), 200
-        return jsonify(result), status
+        try:
+            raw_input = _extract_raw_input(request)
+            result, status = _run(
+                handler.process_request(raw_input, request, request.method, path)
+            )
+            if result is None:
+                return jsonify(None), 200
+            return jsonify(result), status
+        except AdapterError as exc:
+            return jsonify({"error": str(exc)}), exc.status
+        except (ValueError, TypeError, JsonQLError) as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception as exc:
+            if handler.logger:
+                handler.logger.error(f"[JSONQL] Unhandled error: {exc}")
+            return jsonify({"error": str(exc)}), 500
 
     return bp

@@ -17,10 +17,10 @@ Usage::
     app.include_router(router, prefix="/jsonql")
 """
 
-from __future__ import annotations
+from typing import Any, Optional
 
-from typing import Any
-
+from ..errors import AdapterError, JsonQLError
+from .fastapi_adapter import _extract_raw_input
 from .mongo_base import MongoAdapterOptions, MongoBaseHandler
 
 
@@ -28,31 +28,41 @@ def create_fastapi_mongo_router(
     options: MongoAdapterOptions,
     *,
     prefix: str = "",
-    tags: list[str] | None = None,
+    tags: Optional[list[str]] = None,
 ) -> Any:
     """Create a FastAPI ``APIRouter`` wired to JSONQL with MongoDB."""
     from fastapi import APIRouter, Request
-    from fastapi.responses import JSONResponse
+
+    from .fastapi_adapter import _json_response
 
     router = APIRouter(prefix=prefix, tags=tags or ["jsonql-mongo"])
     handler = MongoBaseHandler(options)
 
-    @router.api_route(
-        "/{path:path}",
-        methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    )
-    @router.api_route(
-        "/",
-        methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    )
-    async def handle(request: Request, path: str = "") -> JSONResponse:
+    async def _handle(request: Request, path: str = "") -> Any:
         try:
-            raw_input = await request.json()
-        except Exception:
-            raw_input = {}
-        result, status = await handler.process_request(
-            raw_input, request, request.method, path
-        )
-        return JSONResponse(content=result, status_code=status)
+            raw_input = await _extract_raw_input(request)
+            result, status = await handler.process_request(
+                raw_input, request, request.method, path
+            )
+            return _json_response(result, status)
+        except AdapterError as exc:
+            return _json_response({"error": str(exc)}, exc.status)
+        except (ValueError, TypeError, JsonQLError) as exc:
+            return _json_response({"error": str(exc)}, 400)
+        except Exception as exc:
+            if handler.logger:
+                handler.logger.error(f"[JSONQL] Unhandled error: {exc}")
+            return _json_response({"error": str(exc)}, 500)
+
+    router.add_api_route(
+        "/{path:path}",
+        _handle,
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    )
+    router.add_api_route(
+        "/",
+        _handle,
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    )
 
     return router
