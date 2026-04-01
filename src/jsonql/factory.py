@@ -311,14 +311,14 @@ def _create_postgres_driver(dsn: str) -> _PostgresDriver:
 
 def _create_mysql_driver(dsn: str) -> _MySQLDriver:
     import pymysql
-    from urllib.parse import urlparse
+    from urllib.parse import urlparse, unquote
 
     # Parse mysql://user:pass@host:port/db format
     parsed = urlparse(dsn)
     conn = pymysql.connect(
         host=parsed.hostname or "localhost",
-        user=parsed.username or "jsonql",
-        password=parsed.password or "password",
+        user=unquote(parsed.username) if parsed.username else "jsonql",
+        password=unquote(parsed.password) if parsed.password else "password",
         database=(parsed.path or "/jsonql_test").lstrip("/"),
         port=parsed.port or 3306,
         cursorclass=pymysql.cursors.DictCursor,
@@ -337,18 +337,20 @@ def _create_sqlite_driver(filename: str) -> _SQLiteDriver:
 
 def _create_mssql_driver(dsn: str) -> _MSSQLDriver:
     import pymssql
-    from urllib.parse import urlparse
+    from urllib.parse import urlparse, unquote
 
     # Parse mssql+pymssql://user:pass@host:port/db format
     clean_dsn = dsn.replace("mssql+pymssql://", "mssql://")
     parsed = urlparse(clean_dsn)
     conn = pymssql.connect(
         server=parsed.hostname or "localhost",
-        user=parsed.username or "sa",
-        password=parsed.password or "password",
+        user=unquote(parsed.username) if parsed.username else "sa",
+        password=unquote(parsed.password) if parsed.password else "password",
         database=(parsed.path or "/jsonql_test").lstrip("/"),
         port=parsed.port or 1433,
         autocommit=True,
         as_dict=True,
+        tds_version="7.0",
+        conn_properties="",
     )
     return _MSSQLDriver(conn)
