@@ -47,7 +47,7 @@ class SQLTranspiler:
     ) -> TranspileResult:
         """Transpile a statement (query *or* mutation) into SQL."""
         if is_mutation(statement):
-            mut = statement  # type: ignore[assignment]
+            mut = statement
             assert isinstance(mut, JsonQLMutation)
             if mut.op == "create":
                 return self.transpile_insert(table_name, mut.data)

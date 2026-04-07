@@ -35,7 +35,7 @@ def create_fastapi_mongo_router(
 
     from .fastapi_adapter import _json_response
 
-    router = APIRouter(prefix=prefix, tags=tags or ["jsonql-mongo"])
+    router = APIRouter(prefix=prefix, tags=list(tags or ["jsonql-mongo"]))
     handler = MongoBaseHandler(options)
 
     async def _handle(request: Request, path: str = "") -> Any:

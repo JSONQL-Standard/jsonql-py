@@ -71,7 +71,7 @@ def create_fastapi_router(
     """Create a FastAPI ``APIRouter`` wired to JSONQL."""
     from fastapi import APIRouter, Request
 
-    router = APIRouter(prefix=prefix, tags=tags or ["jsonql"])
+    router = APIRouter(prefix=prefix, tags=list(tags or ["jsonql"]))
     handler = BaseHandler(options)
 
     async def _handle(request: Request, path: str = "") -> Any:

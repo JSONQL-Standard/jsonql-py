@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from .errors import JsonQLValidationError
 from .types import (
     JsonQLQuery,
@@ -203,15 +205,15 @@ class Validator:
         if attr:
             val = getattr(fld, attr, None)
             if val is not None:
-                return val
+                return bool(val)
         # Fallback to generic allow_aggregate
         fallback = getattr(fld, "allow_aggregate", None)
         if fallback is not None:
-            return fallback
+            return bool(fallback)
         return True
 
     @staticmethod
-    def _calculate_depth(include: dict) -> int:
+    def _calculate_depth(include: dict[str, Any]) -> int:
         if not include:
             return 0
         max_child = 0

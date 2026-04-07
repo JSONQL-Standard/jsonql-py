@@ -121,8 +121,12 @@ class Parser:
             fields=raw.get("fields", []),
             where=raw.get("where"),
             sort=sort_raw,
-            limit=raw_limit,
-            offset=raw_offset or raw_skip,
+            limit=int(raw_limit) if raw_limit is not None else None,
+            offset=(
+                int(raw_offset)
+                if raw_offset is not None
+                else (int(raw_skip) if raw_skip is not None else None)
+            ),
             aggregate=raw.get("aggregate", {}),
             group_by=raw.get("groupBy", []),
             include=include_raw,

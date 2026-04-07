@@ -146,7 +146,7 @@ def connect_mongo(uri: str, db_name: str) -> Any:
     """
     from pymongo import MongoClient
 
-    client = MongoClient(uri)
+    client: Any = MongoClient(uri)
     # Verify connectivity
     client.admin.command("ping")
     return client, client[db_name]

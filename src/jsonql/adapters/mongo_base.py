@@ -324,12 +324,14 @@ class MongoBaseHandler:
             return [doc]
 
         if op == "insert_many":
-            docs = result.document if isinstance(result.document, list) else [result.document]
-            coll.insert_many(docs)
-            for doc in docs:
+            insert_docs: list[dict[str, Any]] = (
+                result.document if isinstance(result.document, list) else [result.document]  # type: ignore[list-item]
+            )
+            coll.insert_many(insert_docs)
+            for doc in insert_docs:
                 if isinstance(doc, dict):
                     doc.pop("_id", None)
-            return docs
+            return insert_docs
 
         if op == "update_many":
             coll.update_many(result.filter, result.update)

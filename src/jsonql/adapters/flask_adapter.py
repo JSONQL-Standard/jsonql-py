@@ -63,8 +63,8 @@ def create_flask_blueprint(
         finally:
             loop.close()
 
-    @bp.route("/", defaults={"path": ""}, methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-    @bp.route("/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+    @bp.route("/", defaults={"path": ""}, methods=["GET", "POST", "PUT", "PATCH", "DELETE"])  # type: ignore[untyped-decorator]
+    @bp.route("/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])  # type: ignore[untyped-decorator]
     def handle(path: str) -> Any:
         try:
             raw_input = _extract_raw_input(request)

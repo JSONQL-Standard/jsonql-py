@@ -107,7 +107,7 @@ class MongoTranspiler:
                 pipeline.append({"$group": group_stage})
 
                 # $project to flatten _id back into fields
-                project_stage = {"_id": 0}
+                project_stage: dict[str, int | str] = {"_id": 0}
                 for f in distinct_fields:
                     project_stage[f] = f"$_id.{f}"
                 # Also project non-distinct selected fields

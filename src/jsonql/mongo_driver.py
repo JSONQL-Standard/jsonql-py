@@ -63,7 +63,9 @@ class MongoDBDriver:
         return doc
 
     async def _execute_insert_many(self, coll: Any, result: MongoResult) -> dict[str, Any]:
-        docs = result.document if isinstance(result.document, list) else [result.document]
+        docs: list[dict[str, Any]] = (
+            result.document if isinstance(result.document, list) else [result.document]  # type: ignore[list-item]
+        )
         res = await coll.insert_many(docs)
         return {"inserted_count": len(res.inserted_ids)}
 
