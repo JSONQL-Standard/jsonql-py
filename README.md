@@ -5,16 +5,16 @@
 ## Installation
 
 ```bash
-pip install jsonql
+pip install jsonql-py
 ```
 
 With framework extras:
 
 ```bash
-pip install jsonql[flask]      # Flask adapter
-pip install jsonql[fastapi]    # FastAPI adapter
-pip install jsonql[django]     # Django REST adapter
-pip install jsonql[postgres]   # PostgreSQL driver support
+pip install jsonql-py[flask]      # Flask adapter
+pip install jsonql-py[fastapi]    # FastAPI adapter
+pip install jsonql-py[django]     # Django REST adapter
+pip install jsonql-py[postgres]   # PostgreSQL driver support
 ```
 
 ## Quick Start
@@ -205,7 +205,7 @@ JsonQLError
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev]"  # import name is still 'jsonql'
 pytest
 ruff check src/ tests/
 mypy src/
