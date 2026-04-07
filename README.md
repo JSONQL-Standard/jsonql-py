@@ -54,36 +54,47 @@ pip install jsonql-py[mysql]      # mysql-connector-python
 
 ## Quick Start
 
-A working JSONQL API in under 25 lines:
+A working JSONQL API in under 15 lines:
 
 ```python
 # app.py
 from flask import Flask
-from jsonql import create_driver
+from jsonql import create_driver, must_load_schema
 from jsonql.adapters import create_flask_blueprint, AdapterOptions
-from jsonql.types import JsonQLSchema, JsonQLTable, JsonQLField
 
 app = Flask(__name__)
 driver = create_driver("postgres")  # reads DB_DSN from env
 
-schema = JsonQLSchema(tables={
-    "users": JsonQLTable(fields={
-        "id":    JsonQLField(type="integer", filterable=True),
-        "name":  JsonQLField(type="string",  filterable=True, sortable=True),
-        "email": JsonQLField(type="string",  filterable=True),
-        "age":   JsonQLField(type="integer", filterable=True, sortable=True),
-    }),
-})
-
 bp = create_flask_blueprint(AdapterOptions(
     driver=driver,
-    schema=schema,
+    schema=must_load_schema("schema.json"),  # or define inline
 ))
 app.register_blueprint(bp, url_prefix="/api")
 
 if __name__ == "__main__":
     app.run(port=5000)
 ```
+
+<details>
+<summary>schema.json</summary>
+
+```json
+{
+  "tables": {
+    "users": {
+      "fields": {
+        "id":    { "type": "number" },
+        "name":  { "type": "string", "allowFilter": true, "allowSort": true },
+        "email": { "type": "string", "allowFilter": true },
+        "age":   { "type": "number", "allowFilter": true, "allowSort": true }
+      }
+    }
+  }
+}
+```
+</details>
+
+> **Prefer inline?** Replace `must_load_schema(...)` with `JsonQLSchema(tables={...})` — see [Schema Validation](#schema-validation).
 
 ```bash
 export DB_DSN="postgresql://user:pass@localhost:5432/mydb"
@@ -222,7 +233,7 @@ result = hydrator.hydrate(rows, schema, "users")
 from jsonql import JsonQLEngine, create_driver
 from jsonql.types import parse_schema
 
-schema = parse_schema({...})  # Your schema JSON
+schema = parse_schema({...})  # or must_load_schema("schema.json")
 
 driver = create_driver("postgres")  # reads DB_DSN from env
 
@@ -301,6 +312,9 @@ from jsonql.adapters import (
 | `ResultHydrator` | Flatten SQL joins → nested JSON |
 | `JsonQLEngine` | Full pipeline with builder pattern |
 | `create_driver` | Factory for database drivers (Postgres, MySQL, SQLite, MSSQL) |
+| `load_schema` | Load schema from a JSON file |
+| `must_load_schema` | Load schema or raise on failure |
+| `env_or` | Read env var with fallback |
 | `DatabaseDriver` | Abstract database driver interface |
 
 ## Supported Dialects
