@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   lint:
@@ -71,3 +71,98 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jsonql
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: jsonql_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jsonql"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        adapter:
+          - name: py-flask-simple
+            port: 9200
+            test-path: tests/unified
+          - name: py-flask-lifecycle
+            port: 9201
+            test-path: tests/unified/lifecycle
+          - name: py-fastapi-simple
+            port: 9202
+            test-path: tests/unified
+          - name: py-fastapi-lifecycle
+            port: 9203
+            test-path: tests/unified/lifecycle
+          - name: py-django-simple
+            port: 9204
+            test-path: tests/unified
+          - name: py-django-lifecycle
+            port: 9205
+            test-path: tests/unified/lifecycle
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: jsonql-py
+
+      - uses: actions/checkout@v4
+        with:
+          repository: jsonql-org/jsonql-tests
+          path: jsonql-tests
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install jsonql-py from source
+        run: pip install -e ./jsonql-py
+
+      - name: Install server dependencies
+        run: |
+          pip install flask fastapi uvicorn django djangorestframework
+          pip install psycopg2-binary pymysql pymssql pymongo
+
+      - name: Install test runner dependencies
+        run: pip install -r jsonql-tests/requirements.txt
+
+      - name: Start ${{ matrix.adapter.name }}
+        run: |
+          cd jsonql-tests/integration-tests/${{ matrix.adapter.name }}
+          PYTHONPATH=${{ github.workspace }}/jsonql-tests/integration-tests/py-shared \
+          DB_TYPE=postgres \
+          DB_DSN="host=localhost dbname=jsonql_test user=jsonql password=password" \
+          JSONQL_SCHEMA_PATH=${{ github.workspace }}/jsonql-tests/fixtures/standard/schema.json \
+          PORT=${{ matrix.adapter.port }} \
+          python server.py &
+          # Wait for server to be ready
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:${{ matrix.adapter.port }}/health > /dev/null 2>&1; then
+              echo "Server ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Run compliance tests against ${{ matrix.adapter.name }}
+        run: |
+          cd jsonql-tests
+          python -m pytest tests/ \
+            --target=http://localhost:${{ matrix.adapter.port }} \
+            --db-type=postgres \
+            --db-dsn="postgresql://jsonql:password@localhost:5432/jsonql_test" \
+            --test-path=${{ matrix.adapter.test-path }} \
+            -q --tb=short
