@@ -28,11 +28,11 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jsonql-org/jsonql-py"
+Homepage = "https://github.com/JSONQL-Standard/jsonql-py"
 Documentation = "https://jsonql.org"
-Repository = "https://github.com/jsonql-org/jsonql-py"
-Issues = "https://github.com/jsonql-org/jsonql-py/issues"
-Changelog = "https://github.com/jsonql-org/jsonql-py/blob/main/CHANGELOG.md"
+Repository = "https://github.com/JSONQL-Standard/jsonql-py"
+Issues = "https://github.com/JSONQL-Standard/jsonql-py/issues"
+Changelog = "https://github.com/JSONQL-Standard/jsonql-py/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
 flask = ["flask>=2.0"]
