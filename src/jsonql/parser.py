@@ -57,10 +57,22 @@ class Parser:
     # ------------------------------------------------------------------
 
     # Keys allowed in a query object
-    _QUERY_KEYS = frozenset({
-        "version", "from", "where", "sort", "limit", "skip", "offset",
-        "fields", "include", "groupBy", "distinct", "aggregate",
-    })
+    _QUERY_KEYS = frozenset(
+        {
+            "version",
+            "from",
+            "where",
+            "sort",
+            "limit",
+            "skip",
+            "offset",
+            "fields",
+            "include",
+            "groupBy",
+            "distinct",
+            "aggregate",
+        }
+    )
 
     def _parse_query(
         self,

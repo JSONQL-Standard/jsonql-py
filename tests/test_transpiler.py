@@ -237,9 +237,7 @@ class TestUpdateTranspiler:
         self.t = SQLTranspiler("sqlite")
 
     def test_update(self) -> None:
-        r = self.t.transpile_update(
-            "users", {"name": "Bob"}, {"id": {"eq": 1}}
-        )
+        r = self.t.transpile_update("users", {"name": "Bob"}, {"id": {"eq": 1}})
         assert 'UPDATE "users" SET' in r.sql
         assert '"name" = ?' in r.sql
         assert "WHERE" in r.sql

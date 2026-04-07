@@ -1,7 +1,13 @@
 """JSONQL framework adapters — Flask, FastAPI, Django REST + MongoDB variants."""
 
 from ..errors import AdapterError
-from .base import AdapterOptions, BaseHandler, build_rest_mutation, get_id_from_query, infer_mutation
+from .base import (
+    AdapterOptions,
+    BaseHandler,
+    build_rest_mutation,
+    get_id_from_query,
+    infer_mutation,
+)
 from .django_adapter import JsonQLDjangoView
 from .django_mongo import JsonQLDjangoMongoView
 from .fastapi_adapter import create_fastapi_router

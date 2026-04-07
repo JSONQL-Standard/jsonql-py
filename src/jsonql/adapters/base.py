@@ -61,11 +61,6 @@ class AdapterOptions:
 
 
 # Re-export public helpers from mongo_base (shared between SQL and MongoDB)
-from .mongo_base import (
-    build_rest_mutation,
-    get_id_from_query,
-    infer_mutation,
-)
 
 
 def _infer_mutation(http_method: str, raw: dict[str, Any]) -> dict[str, Any]:
@@ -143,9 +138,7 @@ class BaseHandler:
 
         # 1. beforeParse
         if self.options.before_parse:
-            raw_query = await _await_maybe(
-                self.options.before_parse(raw_query, context)
-            )
+            raw_query = await _await_maybe(self.options.before_parse(raw_query, context))
 
         # 2. Infer mutation
         if isinstance(raw_query, dict):
@@ -155,9 +148,7 @@ class BaseHandler:
         statement = self.parser.parse(raw_query)
 
         if self.options.after_parse:
-            statement = await _await_maybe(
-                self.options.after_parse(statement, context)
-            )
+            statement = await _await_maybe(self.options.after_parse(statement, context))
 
         # 4. Resolve table name
         table_name: str | None = None
@@ -173,22 +164,16 @@ class BaseHandler:
 
         # 5. beforeQuery
         if self.options.before_query:
-            statement = await _await_maybe(
-                self.options.before_query(statement, context)
-            )
+            statement = await _await_maybe(self.options.before_query(statement, context))
 
         # 6. beforeValidate
         if self.options.before_validate:
-            statement = await _await_maybe(
-                self.options.before_validate(statement, context)
-            )
+            statement = await _await_maybe(self.options.before_validate(statement, context))
 
         # 7. Resolve schema
         schema: JsonQLSchema | None = None
         if self.options.schema_resolver:
-            schema = await _await_maybe(
-                self.options.schema_resolver(context)
-            )
+            schema = await _await_maybe(self.options.schema_resolver(context))
         else:
             schema = self.options.schema
 
@@ -200,15 +185,16 @@ class BaseHandler:
                 validation = validator.validate(statement)
 
                 if self.options.after_validate:
-                    await _await_maybe(
-                        self.options.after_validate(validation, context)
-                    )
+                    await _await_maybe(self.options.after_validate(validation, context))
 
                 if not validation.valid:
-                    return {"error": "Validation Error", "details": [
-                        {"code": e.code, "message": e.message, "path": e.path}
-                        for e in validation.errors
-                    ]}, 400
+                    return {
+                        "error": "Validation Error",
+                        "details": [
+                            {"code": e.code, "message": e.message, "path": e.path}
+                            for e in validation.errors
+                        ],
+                    }, 400
 
         # 9. Execute
         if self.can_execute and self.transpiler and table_name:
@@ -217,17 +203,11 @@ class BaseHandler:
             # Mutation before-hooks
             if is_mut and isinstance(statement, JsonQLMutation):
                 if statement.op == "create" and self.options.before_create:
-                    statement = await _await_maybe(
-                        self.options.before_create(statement, context)
-                    )
+                    statement = await _await_maybe(self.options.before_create(statement, context))
                 elif statement.op == "update" and self.options.before_update:
-                    statement = await _await_maybe(
-                        self.options.before_update(statement, context)
-                    )
+                    statement = await _await_maybe(self.options.before_update(statement, context))
                 elif statement.op == "delete" and self.options.before_delete:
-                    statement = await _await_maybe(
-                        self.options.before_delete(statement, context)
-                    )
+                    statement = await _await_maybe(self.options.before_delete(statement, context))
 
             # Transpile
             result = self.transpiler.transpile(statement, table_name, schema)
@@ -269,22 +249,16 @@ class BaseHandler:
             # Hydrate
             if self.hydrator:
                 if self.options.before_hydrate:
-                    flat_rows = await _await_maybe(
-                        self.options.before_hydrate(flat_rows, context)
-                    )
+                    flat_rows = await _await_maybe(self.options.before_hydrate(flat_rows, context))
 
                 hydrated = self.hydrator.hydrate(flat_rows, schema, table_name)
 
                 if self.options.after_hydrate:
-                    hydrated = await _await_maybe(
-                        self.options.after_hydrate(hydrated, context)
-                    )
+                    hydrated = await _await_maybe(self.options.after_hydrate(hydrated, context))
 
                 result_data: Any = {"meta": {"query": raw_input}, "data": hydrated}
                 if self.options.after_query:
-                    result_data = await _await_maybe(
-                        self.options.after_query(result_data, context)
-                    )
+                    result_data = await _await_maybe(self.options.after_query(result_data, context))
                 return result_data, 200
 
         return None, 200

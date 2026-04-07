@@ -94,18 +94,14 @@ class ResultHydrator:
 
             # Copy non-relation fields
             for k, v in base.items():
-                is_relation = (
-                    table_def is not None and k in table_def.relations
-                )
+                is_relation = table_def is not None and k in table_def.relations
                 if not is_relation:
                     merged[k] = v
 
             # Handle relations
             if table_def:
                 for rel_name, rel_def in table_def.relations.items():
-                    relation_present = any(
-                        rel_name in r for r in group_rows
-                    )
+                    relation_present = any(rel_name in r for r in group_rows)
 
                     all_columns_selected = table_def.fields and all(
                         fname in base for fname in table_def.fields
@@ -134,9 +130,7 @@ class ResultHydrator:
                             merged[rel_name] = []
                         else:
                             # Check for aggregate result
-                            if self._is_aggregate_result(
-                                merged_sub, schema, target_table
-                            ):
+                            if self._is_aggregate_result(merged_sub, schema, target_table):
                                 merged[rel_name] = merged_sub[0]
                             else:
                                 merged[rel_name] = merged_sub

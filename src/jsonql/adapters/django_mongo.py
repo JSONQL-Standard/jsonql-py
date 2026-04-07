@@ -77,9 +77,7 @@ class JsonQLDjangoMongoView:
             try:
                 raw_input = _extract_raw_input(request)
                 result, status = _run(
-                    handler.process_request(
-                        raw_input, request, request.method, path
-                    )
+                    handler.process_request(raw_input, request, request.method, path)
                 )
                 return JsonResponse(result, status=status, safe=False)
             except AdapterError as exc:
@@ -92,4 +90,5 @@ class JsonQLDjangoMongoView:
                 return JsonResponse({"error": str(exc)}, status=500)
 
         from django.views.decorators.csrf import csrf_exempt
+
         return csrf_exempt(view)

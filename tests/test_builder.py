@@ -12,12 +12,7 @@ class TestQueryBuilder:
         assert q.fields == ["id", "name"]
 
     def test_where(self) -> None:
-        q = (
-            QueryBuilder()
-            .from_table("users")
-            .where(field("status", eq("active")))
-            .build()
-        )
+        q = QueryBuilder().from_table("users").where(field("status", eq("active"))).build()
         assert q.where == {"status": {"eq": "active"}}
 
     def test_and_where(self) -> None:
@@ -41,14 +36,7 @@ class TestQueryBuilder:
         assert "or" in q.where
 
     def test_order_limit_offset(self) -> None:
-        q = (
-            QueryBuilder()
-            .from_table("users")
-            .order_by("name", "-age")
-            .limit(10)
-            .offset(20)
-            .build()
-        )
+        q = QueryBuilder().from_table("users").order_by("name", "-age").limit(10).offset(20).build()
         assert q.sort == ["name", "-age"]
         assert q.limit == 10
         assert q.offset == 20
@@ -91,23 +79,13 @@ class TestMutationBuilder:
         assert m.data == {"name": "Alice", "age": 30}
 
     def test_update(self) -> None:
-        m = (
-            MutationBuilder()
-            .update({"name": "Bob"})
-            .where({"id": {"eq": 1}})
-            .build()
-        )
+        m = MutationBuilder().update({"name": "Bob"}).where({"id": {"eq": 1}}).build()
         assert m.op == "update"
         assert m.patch == {"name": "Bob"}
         assert m.where is not None
 
     def test_delete(self) -> None:
-        m = (
-            MutationBuilder()
-            .delete()
-            .where({"id": {"eq": 1}})
-            .build()
-        )
+        m = MutationBuilder().delete().where({"id": {"eq": 1}}).build()
         assert m.op == "delete"
 
     def test_reset(self) -> None:

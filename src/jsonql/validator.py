@@ -28,9 +28,7 @@ class Validator:
 
         # Global settings
         if self.schema.settings:
-            if not self.schema.settings.allow_aggregate and (
-                query.aggregate or query.group_by
-            ):
+            if not self.schema.settings.allow_aggregate and (query.aggregate or query.group_by):
                 result.valid = False
                 result.errors.append(
                     ValidationError(
@@ -87,9 +85,7 @@ class Validator:
                     result.errors.append(
                         ValidationError(
                             code="FIELD_NOT_FILTERABLE",
-                            message=(
-                                f"field '{fld_name}' not filterable on table '{self.table}'"
-                            ),
+                            message=(f"field '{fld_name}' not filterable on table '{self.table}'"),
                             path="where",
                         )
                     )
@@ -147,8 +143,7 @@ class Validator:
                             ValidationError(
                                 code="AGGREGATION_NOT_ALLOWED",
                                 message=(
-                                    f"aggregation '{func_name}' not allowed "
-                                    f"on field '{f_raw}'"
+                                    f"aggregation '{func_name}' not allowed on field '{f_raw}'"
                                 ),
                                 path=f"aggregate.{alias}",
                             )

@@ -121,18 +121,14 @@ class MutationBuilder:
     def where(self, where: dict[str, Any]) -> MutationBuilder:
         """Set the WHERE clause for the mutation."""
         if self._mutation is None:
-            raise ValueError(
-                "Mutation not initialised: call create(), update(), or delete() first"
-            )
+            raise ValueError("Mutation not initialised: call create(), update(), or delete() first")
         self._mutation.where = where
         return self
 
     def build(self) -> JsonQLMutation:
         """Return the constructed ``JsonQLMutation``."""
         if self._mutation is None:
-            raise ValueError(
-                "Mutation not initialised: call create(), update(), or delete() first"
-            )
+            raise ValueError("Mutation not initialised: call create(), update(), or delete() first")
         return self._mutation
 
     def reset(self) -> MutationBuilder:

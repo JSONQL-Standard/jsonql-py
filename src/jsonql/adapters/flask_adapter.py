@@ -68,9 +68,7 @@ def create_flask_blueprint(
     def handle(path: str) -> Any:
         try:
             raw_input = _extract_raw_input(request)
-            result, status = _run(
-                handler.process_request(raw_input, request, request.method, path)
-            )
+            result, status = _run(handler.process_request(raw_input, request, request.method, path))
             if result is None:
                 return jsonify(None), 200
             return jsonify(result), status

@@ -60,11 +60,13 @@ class TestParser:
 
     def test_parse_update_mutation(self) -> None:
         parser = Parser()
-        m = parser.parse({
-            "op": "update",
-            "patch": {"name": "Bob"},
-            "where": {"id": {"eq": 1}},
-        })
+        m = parser.parse(
+            {
+                "op": "update",
+                "patch": {"name": "Bob"},
+                "where": {"id": {"eq": 1}},
+            }
+        )
         assert isinstance(m, JsonQLMutation)
         assert m.op == "update"
         assert m.patch == {"name": "Bob"}
@@ -84,16 +86,18 @@ class TestParser:
     def test_max_nesting_depth_enforced(self) -> None:
         parser = Parser(ParserOptions(max_nesting_depth=1))
         with pytest.raises(ValueError, match="Nesting depth"):
-            parser.parse({
-                "include": {
-                    "items": {
-                        "fields": ["id"],
-                        "include": {
-                            "product": {"fields": ["name"]},
-                        },
+            parser.parse(
+                {
+                    "include": {
+                        "items": {
+                            "fields": ["id"],
+                            "include": {
+                                "product": {"fields": ["name"]},
+                            },
+                        }
                     }
                 }
-            })
+            )
 
     def test_allowed_fields_enforced(self) -> None:
         parser = Parser(ParserOptions(allowed_fields=["id", "name"]))
@@ -113,18 +117,20 @@ class TestParser:
 
     def test_parse_full_query(self) -> None:
         parser = Parser()
-        q = parser.parse({
-            "version": "1.0",
-            "from": "orders",
-            "fields": ["id", "total"],
-            "where": {"status": {"eq": "active"}},
-            "sort": ["-total"],
-            "limit": 10,
-            "offset": 5,
-            "groupBy": ["status"],
-            "aggregate": {"totalSum": {"sum": "total"}},
-            "include": {"items": {"fields": ["id", "quantity"]}},
-        })
+        q = parser.parse(
+            {
+                "version": "1.0",
+                "from": "orders",
+                "fields": ["id", "total"],
+                "where": {"status": {"eq": "active"}},
+                "sort": ["-total"],
+                "limit": 10,
+                "offset": 5,
+                "groupBy": ["status"],
+                "aggregate": {"totalSum": {"sum": "total"}},
+                "include": {"items": {"fields": ["id", "quantity"]}},
+            }
+        )
         assert isinstance(q, JsonQLQuery)
         assert q.from_table == "orders"
         assert q.fields == ["id", "total"]

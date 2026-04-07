@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 
 import pytest
 
@@ -13,7 +12,6 @@ from jsonql.factory import (
     load_schema,
     must_load_schema,
 )
-
 
 # ---------------------------------------------------------------------------
 # env_or

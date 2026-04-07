@@ -106,12 +106,8 @@ class SQLTranspiler:
                         select_parts.append(f"COUNT(*) AS {q(alias)}")
                     else:
                         if not _is_valid_identifier(field_name):
-                            raise JsonQLTranspileError(
-                                f"Invalid aggregate field: {field_name}"
-                            )
-                        select_parts.append(
-                            f"{fn}({q(table_name)}.{q(field_name)}) AS {q(alias)}"
-                        )
+                            raise JsonQLTranspileError(f"Invalid aggregate field: {field_name}")
+                        select_parts.append(f"{fn}({q(table_name)}.{q(field_name)}) AS {q(alias)}")
 
         # 3. Includes / JOINs
         if query.include and schema:
@@ -135,9 +131,7 @@ class SQLTranspiler:
             elif query.distinct.fields:
                 # DISTINCT ON is Postgres-specific; for others fall back to plain DISTINCT
                 if self.dialect.name() == "postgres":
-                    cols = ", ".join(
-                        f"{q(table_name)}.{q(f)}" for f in query.distinct.fields
-                    )
+                    cols = ", ".join(f"{q(table_name)}.{q(f)}" for f in query.distinct.fields)
                     distinct_kw = f"DISTINCT ON ({cols}) "
                 else:
                     distinct_kw = "DISTINCT "
@@ -222,16 +216,12 @@ class SQLTranspiler:
         q = self._qi
         table_def = schema.tables.get(parent_table)
         if table_def is None:
-            raise JsonQLTranspileError(
-                f"Table definition not found for {parent_table}"
-            )
+            raise JsonQLTranspileError(f"Table definition not found for {parent_table}")
 
         for rel_name, rel_config in include.items():
             relation = table_def.relations.get(rel_name)
             if relation is None:
-                raise JsonQLTranspileError(
-                    f"Relation {rel_name} not found on table {parent_table}"
-                )
+                raise JsonQLTranspileError(f"Relation {rel_name} not found on table {parent_table}")
 
             target_table = relation.target or rel_name
 
@@ -243,9 +233,7 @@ class SQLTranspiler:
                 current_hydrator = f"{hydrator_path}__{rel_name}"
 
             if not isinstance(rel_config, dict):
-                raise JsonQLTranspileError(
-                    f"Invalid include configuration for {rel_name}"
-                )
+                raise JsonQLTranspileError(f"Invalid include configuration for {rel_name}")
 
             # Pagination
             limit_val: int | None = None
@@ -273,18 +261,14 @@ class SQLTranspiler:
                 for f in rel_config["fields"]:
                     if isinstance(f, str):
                         alias = f"{current_hydrator}__{f}"
-                        select_parts.append(
-                            f"{q(current_alias)}.{q(f)} AS {q(alias)}"
-                        )
+                        select_parts.append(f"{q(current_alias)}.{q(f)} AS {q(alias)}")
             else:
                 # No explicit fields — select all columns from the target table schema
                 target_def = schema.tables.get(target_table)
                 if target_def and target_def.fields:
                     for f in target_def.fields:
                         alias = f"{current_hydrator}__{f}"
-                        select_parts.append(
-                            f"{q(current_alias)}.{q(f)} AS {q(alias)}"
-                        )
+                        select_parts.append(f"{q(current_alias)}.{q(f)} AS {q(alias)}")
                 else:
                     select_parts.append(f"{q(current_alias)}.*")
 
@@ -300,28 +284,19 @@ class SQLTranspiler:
                         if field_name == "*" and func_name == "count":
                             sub_select = "COUNT(*)"
                         else:
-                            sub_select = (
-                                f"{func_name.upper()}"
-                                f"({q(sub_alias)}.{q(field_name)})"
-                            )
+                            sub_select = f"{func_name.upper()}({q(sub_alias)}.{q(field_name)})"
                         # Join condition for subquery
                         if relation.type == "hasOne":
                             sub_on = (
-                                f"{q(parent_alias)}.{q(relation.foreign_key)}"
-                                f" = {q(sub_alias)}.id"
+                                f"{q(parent_alias)}.{q(relation.foreign_key)} = {q(sub_alias)}.id"
                             )
                         else:
                             sub_on = (
-                                f"{q(sub_alias)}.{q(relation.foreign_key)}"
-                                f" = {q(parent_alias)}.id"
+                                f"{q(sub_alias)}.{q(relation.foreign_key)} = {q(parent_alias)}.id"
                             )
                         sub_where = [sub_on]
-                        if "where" in rel_config and isinstance(
-                            rel_config["where"], dict
-                        ):
-                            conds, new_args = self._process_where(
-                                rel_config["where"], sub_alias
-                            )
+                        if "where" in rel_config and isinstance(rel_config["where"], dict):
+                            conds, new_args = self._process_where(rel_config["where"], sub_alias)
                             sub_where.extend(conds)
                             args.extend(new_args)
 
@@ -335,26 +310,15 @@ class SQLTranspiler:
 
             # ON clause
             if relation.type == "hasOne":
-                on_clause = (
-                    f"{q(parent_alias)}.{q(relation.foreign_key)}"
-                    f" = {q(current_alias)}.id"
-                )
+                on_clause = f"{q(parent_alias)}.{q(relation.foreign_key)} = {q(current_alias)}.id"
             elif relation.type == "hasMany":
-                on_clause = (
-                    f"{q(current_alias)}.{q(relation.foreign_key)}"
-                    f" = {q(parent_alias)}.id"
-                )
+                on_clause = f"{q(current_alias)}.{q(relation.foreign_key)} = {q(parent_alias)}.id"
             else:  # belongsTo
-                on_clause = (
-                    f"{q(parent_alias)}.{q(relation.foreign_key)}"
-                    f" = {q(current_alias)}.id"
-                )
+                on_clause = f"{q(parent_alias)}.{q(relation.foreign_key)} = {q(current_alias)}.id"
 
             # Include-level where → ON clause
             if "where" in rel_config and isinstance(rel_config["where"], dict):
-                conds, new_args = self._process_where(
-                    rel_config["where"], current_alias
-                )
+                conds, new_args = self._process_where(rel_config["where"], current_alias)
                 if conds:
                     on_clause += " AND " + " AND ".join(conds)
                     args.extend(new_args)
@@ -374,9 +338,7 @@ class SQLTranspiler:
                     order_by = ", ".join(sort_parts)
 
                 partition_key = (
-                    relation.foreign_key
-                    if relation.type in ("hasMany", "hasOne")
-                    else "id"
+                    relation.foreign_key if relation.type in ("hasMany", "hasOne") else "id"
                 )
                 target_sql = (
                     f"(SELECT *, ROW_NUMBER() OVER"
@@ -384,9 +346,7 @@ class SQLTranspiler:
                     f" as rn FROM {q(target_table)})"
                 )
 
-            join_parts.append(
-                f"LEFT JOIN {target_sql} AS {q(current_alias)} ON {on_clause}"
-            )
+            join_parts.append(f"LEFT JOIN {target_sql} AS {q(current_alias)} ON {on_clause}")
 
             # Recursive nested includes
             if "include" in rel_config and isinstance(rel_config["include"], dict):
@@ -422,13 +382,9 @@ class SQLTranspiler:
                     or_conds: list[str] = []
                     for item in cond:
                         if isinstance(item, dict):
-                            sub_conds, sub_args = self._process_where(
-                                item, table_alias
-                            )
+                            sub_conds, sub_args = self._process_where(item, table_alias)
                             if sub_conds:
-                                or_conds.append(
-                                    "(" + " AND ".join(sub_conds) + ")"
-                                )
+                                or_conds.append("(" + " AND ".join(sub_conds) + ")")
                                 args.extend(sub_args)
                     if or_conds:
                         conditions.append("(" + " OR ".join(or_conds) + ")")
@@ -439,33 +395,23 @@ class SQLTranspiler:
                 if isinstance(cond, list):
                     for item in cond:
                         if isinstance(item, dict):
-                            sub_conds, sub_args = self._process_where(
-                                item, table_alias
-                            )
+                            sub_conds, sub_args = self._process_where(item, table_alias)
                             if sub_conds:
-                                conditions.append(
-                                    "(" + " AND ".join(sub_conds) + ")"
-                                )
+                                conditions.append("(" + " AND ".join(sub_conds) + ")")
                                 args.extend(sub_args)
                 continue
 
             # NOT clause — recursively process the sub-where and negate
             if field_name in ("not", "NOT"):
                 if isinstance(cond, dict):
-                    sub_conds, sub_args = self._process_where(
-                        cond, table_alias
-                    )
+                    sub_conds, sub_args = self._process_where(cond, table_alias)
                     if sub_conds:
-                        conditions.append(
-                            "NOT (" + " AND ".join(sub_conds) + ")"
-                        )
+                        conditions.append("NOT (" + " AND ".join(sub_conds) + ")")
                         args.extend(sub_args)
                 continue
 
             if not _is_valid_identifier(field_name):
-                raise JsonQLTranspileError(
-                    f"Invalid field name in where clause: {field_name}"
-                )
+                raise JsonQLTranspileError(f"Invalid field name in where clause: {field_name}")
 
             if isinstance(cond, dict):
                 known_ops = {
@@ -496,47 +442,31 @@ class SQLTranspiler:
                     if "." in ref:
                         rel, col = ref.split(".", 1)
                         if not _is_valid_identifier(rel) or not _is_valid_identifier(col):
-                            raise JsonQLTranspileError(
-                                f"Invalid field reference: {ref}"
-                            )
+                            raise JsonQLTranspileError(f"Invalid field reference: {ref}")
                         return f"{q(rel)}.{q(col)}"
                     if not _is_valid_identifier(ref):
-                        raise JsonQLTranspileError(
-                            f"Invalid field reference: {ref}"
-                        )
+                        raise JsonQLTranspileError(f"Invalid field reference: {ref}")
                     return f"{q(table_alias)}.{q(ref)}"
 
                 if "eq" in cond:
                     v = cond["eq"]
                     ref_expr = field_ref_expr(v)
                     if ref_expr is not None:
-                        conditions.append(
-                            f"{q(table_alias)}.{q(field_name)} = {ref_expr}"
-                        )
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} = {ref_expr}")
                     elif v is None:
-                        conditions.append(
-                            f"{q(table_alias)}.{q(field_name)} IS NULL"
-                        )
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} IS NULL")
                     else:
-                        conditions.append(
-                            f"{q(table_alias)}.{q(field_name)} = ?"
-                        )
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} = ?")
                         args.append(v)
                 if "neq" in cond or "ne" in cond:
                     v = cond.get("neq", cond.get("ne"))
                     ref_expr = field_ref_expr(v)
                     if ref_expr is not None:
-                        conditions.append(
-                            f"{q(table_alias)}.{q(field_name)} != {ref_expr}"
-                        )
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} != {ref_expr}")
                     elif v is None:
-                        conditions.append(
-                            f"{q(table_alias)}.{q(field_name)} IS NOT NULL"
-                        )
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} IS NOT NULL")
                     else:
-                        conditions.append(
-                            f"{q(table_alias)}.{q(field_name)} != ?"
-                        )
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} != ?")
                         args.append(v)
                 if "gt" in cond:
                     ref_expr = field_ref_expr(cond["gt"])
@@ -567,17 +497,13 @@ class SQLTranspiler:
                         conditions.append(f"{q(table_alias)}.{q(field_name)} <= ?")
                         args.append(cond["lte"])
                 if "like" in cond:
-                    conditions.append(
-                        f"{q(table_alias)}.{q(field_name)} LIKE ?"
-                    )
+                    conditions.append(f"{q(table_alias)}.{q(field_name)} LIKE ?")
                     args.append(cond["like"])
                 if "in" in cond:
                     vals = cond["in"]
                     if isinstance(vals, list) and vals:
                         placeholders = ", ".join(["?"] * len(vals))
-                        conditions.append(
-                            f"{q(table_alias)}.{q(field_name)} IN ({placeholders})"
-                        )
+                        conditions.append(f"{q(table_alias)}.{q(field_name)} IN ({placeholders})")
                         args.extend(vals)
                 if "nin" in cond:
                     vals = cond["nin"]
@@ -588,26 +514,18 @@ class SQLTranspiler:
                         )
                         args.extend(vals)
                 if "contains" in cond:
-                    conditions.append(
-                        f"{q(table_alias)}.{q(field_name)} LIKE ?"
-                    )
+                    conditions.append(f"{q(table_alias)}.{q(field_name)} LIKE ?")
                     args.append(f"%{cond['contains']}%")
                 if "starts" in cond:
-                    conditions.append(
-                        f"{q(table_alias)}.{q(field_name)} LIKE ?"
-                    )
+                    conditions.append(f"{q(table_alias)}.{q(field_name)} LIKE ?")
                     args.append(f"{cond['starts']}%")
                 if "ends" in cond:
-                    conditions.append(
-                        f"{q(table_alias)}.{q(field_name)} LIKE ?"
-                    )
+                    conditions.append(f"{q(table_alias)}.{q(field_name)} LIKE ?")
                     args.append(f"%{cond['ends']}")
             else:
                 # Shorthand: {"field": value} → eq
                 if cond is None:
-                    conditions.append(
-                        f"{q(table_alias)}.{q(field_name)} IS NULL"
-                    )
+                    conditions.append(f"{q(table_alias)}.{q(field_name)} IS NULL")
                 else:
                     conditions.append(f"{q(table_alias)}.{q(field_name)} = ?")
                     args.append(cond)
@@ -618,9 +536,7 @@ class SQLTranspiler:
     # INSERT / UPDATE / DELETE
     # ------------------------------------------------------------------
 
-    def transpile_insert(
-        self, table_name: str, data: dict[str, Any]
-    ) -> TranspileResult:
+    def transpile_insert(self, table_name: str, data: dict[str, Any]) -> TranspileResult:
         """Generate an INSERT statement."""
         if not data:
             raise JsonQLTranspileError("insert data cannot be empty")
@@ -634,9 +550,7 @@ class SQLTranspiler:
         args = [data[k] for k in keys]
 
         sql = (
-            f"INSERT INTO {q(table_name)}"
-            f" ({', '.join(columns)})"
-            f" VALUES ({', '.join(placeholders)})"
+            f"INSERT INTO {q(table_name)} ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
         )
         if self.dialect.supports_returning():
             sql += " RETURNING *"
@@ -666,9 +580,7 @@ class SQLTranspiler:
             conds, w_args = self._process_where(where, table_name)
             if conds:
                 # Remove table prefix for simple UPDATE (no alias)
-                simple = [
-                    c.replace(f"{q(table_name)}.", "", 1) for c in conds
-                ]
+                simple = [c.replace(f"{q(table_name)}.", "", 1) for c in conds]
                 sql += " WHERE " + " AND ".join(simple)
                 args.extend(w_args)
 
@@ -692,13 +604,9 @@ class SQLTranspiler:
         if where:
             conds, w_args = self._process_where(where, table_name)
             if conds:
-                simple = [
-                    c.replace(f"{q(table_name)}.", "", 1) for c in conds
-                ]
+                simple = [c.replace(f"{q(table_name)}.", "", 1) for c in conds]
                 sql += " WHERE " + " AND ".join(simple)
-                return TranspileResult(
-                    sql=self._replace_placeholders(sql), args=w_args
-                )
+                return TranspileResult(sql=self._replace_placeholders(sql), args=w_args)
 
         return TranspileResult(sql=self._replace_placeholders(sql), args=[])
 

@@ -22,9 +22,7 @@ def _schema() -> JsonQLSchema:
                     "name": JsonQLField(type="string"),
                     "email": JsonQLField(type="string", allow_select=False),
                     "secret": JsonQLField(type="string", allow_filter=False),
-                    "age": JsonQLField(
-                        type="integer", allow_sort=True, allow_aggregate=True
-                    ),
+                    "age": JsonQLField(type="integer", allow_sort=True, allow_aggregate=True),
                     "status": JsonQLField(type="string", allow_group=True),
                 },
                 relations={
@@ -44,9 +42,7 @@ def _schema() -> JsonQLSchema:
 class TestValidator:
     def test_valid_query(self) -> None:
         v = Validator(_schema(), "users")
-        result = v.validate(
-            JsonQLQuery(fields=["id", "name"], sort=["age"])
-        )
+        result = v.validate(JsonQLQuery(fields=["id", "name"], sort=["age"]))
         assert result.valid is True
         assert result.errors == []
 
@@ -58,25 +54,19 @@ class TestValidator:
 
     def test_field_not_filterable(self) -> None:
         v = Validator(_schema(), "users")
-        result = v.validate(
-            JsonQLQuery(where={"secret": {"eq": "foo"}})
-        )
+        result = v.validate(JsonQLQuery(where={"secret": {"eq": "foo"}}))
         assert result.valid is False
         assert any(e.code == "FIELD_NOT_FILTERABLE" for e in result.errors)
 
     def test_relation_not_found(self) -> None:
         v = Validator(_schema(), "users")
-        result = v.validate(
-            JsonQLQuery(include={"nonexistent": {"fields": ["id"]}})
-        )
+        result = v.validate(JsonQLQuery(include={"nonexistent": {"fields": ["id"]}}))
         assert result.valid is False
         assert any(e.code == "RELATION_NOT_FOUND" for e in result.errors)
 
     def test_relation_not_allowed(self) -> None:
         v = Validator(_schema(), "users")
-        result = v.validate(
-            JsonQLQuery(include={"hidden": {"fields": ["id"]}})
-        )
+        result = v.validate(JsonQLQuery(include={"hidden": {"fields": ["id"]}}))
         assert result.valid is False
         assert any(e.code == "RELATION_NOT_ALLOWED" for e in result.errors)
 
@@ -118,9 +108,7 @@ class TestValidator:
             settings=JsonQLSettings(allow_aggregate=False),
         )
         v = Validator(schema, "users")
-        result = v.validate(
-            JsonQLQuery(aggregate={"total": {"count": "*"}})
-        )
+        result = v.validate(JsonQLQuery(aggregate={"total": {"count": "*"}}))
         assert result.valid is False
         assert any(e.code == "AGGREGATION_DISABLED" for e in result.errors)
 

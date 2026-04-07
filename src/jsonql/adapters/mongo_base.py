@@ -8,7 +8,7 @@ for MongoDB (Flask, FastAPI, Django) delegate to this handler.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any, Callable
 
 from ..logger import ConsoleLogger, Logger, NoOpLogger
 from ..mongo_transpiler import MongoResult, MongoTranspiler
@@ -194,9 +194,7 @@ class MongoBaseHandler:
 
         # 1. beforeParse
         if self.options.before_parse:
-            raw_query = await _await_maybe(
-                self.options.before_parse(raw_query, context)
-            )
+            raw_query = await _await_maybe(self.options.before_parse(raw_query, context))
 
         # 2. Infer mutation
         if isinstance(raw_query, dict):
@@ -206,9 +204,7 @@ class MongoBaseHandler:
         statement = self.parser.parse(raw_query)
 
         if self.options.after_parse:
-            statement = await _await_maybe(
-                self.options.after_parse(statement, context)
-            )
+            statement = await _await_maybe(self.options.after_parse(statement, context))
 
         # 4. Resolve collection name
         collection_name = self._resolve_table(statement, path_name)
@@ -218,22 +214,16 @@ class MongoBaseHandler:
 
         # 5. beforeQuery
         if self.options.before_query:
-            statement = await _await_maybe(
-                self.options.before_query(statement, context)
-            )
+            statement = await _await_maybe(self.options.before_query(statement, context))
 
         # 6. beforeValidate
         if self.options.before_validate:
-            statement = await _await_maybe(
-                self.options.before_validate(statement, context)
-            )
+            statement = await _await_maybe(self.options.before_validate(statement, context))
 
         # 7. Resolve schema
         schema: JsonQLSchema | None = None
         if self.options.schema_resolver:
-            schema = await _await_maybe(
-                self.options.schema_resolver(context)
-            )
+            schema = await _await_maybe(self.options.schema_resolver(context))
         else:
             schema = self.options.schema
 
@@ -245,15 +235,16 @@ class MongoBaseHandler:
                 validation = validator.validate(statement)
 
                 if self.options.after_validate:
-                    await _await_maybe(
-                        self.options.after_validate(validation, context)
-                    )
+                    await _await_maybe(self.options.after_validate(validation, context))
 
                 if not validation.valid:
-                    return {"error": "Validation Error", "details": [
-                        {"code": e.code, "message": e.message, "path": e.path}
-                        for e in validation.errors
-                    ]}, 400
+                    return {
+                        "error": "Validation Error",
+                        "details": [
+                            {"code": e.code, "message": e.message, "path": e.path}
+                            for e in validation.errors
+                        ],
+                    }, 400
 
         # 9. Transpile
         if not collection_name:
@@ -264,17 +255,11 @@ class MongoBaseHandler:
         # Mutation before-hooks
         if is_mut and isinstance(statement, JsonQLMutation):
             if statement.op == "create" and self.options.before_create:
-                statement = await _await_maybe(
-                    self.options.before_create(statement, context)
-                )
+                statement = await _await_maybe(self.options.before_create(statement, context))
             elif statement.op == "update" and self.options.before_update:
-                statement = await _await_maybe(
-                    self.options.before_update(statement, context)
-                )
+                statement = await _await_maybe(self.options.before_update(statement, context))
             elif statement.op == "delete" and self.options.before_delete:
-                statement = await _await_maybe(
-                    self.options.before_delete(statement, context)
-                )
+                statement = await _await_maybe(self.options.before_delete(statement, context))
 
         mongo_result = self.transpiler.transpile(statement, collection_name)
         self.logger.debug(f"[JSONQL] Mongo op: {mongo_result.operation}")
@@ -303,9 +288,7 @@ class MongoBaseHandler:
         # 12. Return query result
         result_data: Any = {"meta": {"query": raw_input}, "data": rows}
         if self.options.after_query:
-            result_data = await _await_maybe(
-                self.options.after_query(result_data, context)
-            )
+            result_data = await _await_maybe(self.options.after_query(result_data, context))
         return result_data, 200
 
     def _execute_sync(self, result: MongoResult) -> list[dict[str, Any]]:

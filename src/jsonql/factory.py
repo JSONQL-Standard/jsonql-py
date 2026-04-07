@@ -26,7 +26,6 @@ from typing import Any
 
 from .types import JsonQLSchema, parse_schema
 
-
 # ---------------------------------------------------------------------------
 # Environment helpers
 # ---------------------------------------------------------------------------
@@ -310,8 +309,9 @@ def _create_postgres_driver(dsn: str) -> _PostgresDriver:
 
 
 def _create_mysql_driver(dsn: str) -> _MySQLDriver:
+    from urllib.parse import unquote, urlparse
+
     import pymysql
-    from urllib.parse import urlparse, unquote
 
     # Parse mysql://user:pass@host:port/db format
     parsed = urlparse(dsn)
@@ -336,8 +336,9 @@ def _create_sqlite_driver(filename: str) -> _SQLiteDriver:
 
 
 def _create_mssql_driver(dsn: str) -> _MSSQLDriver:
+    from urllib.parse import unquote, urlparse
+
     import pymssql
-    from urllib.parse import urlparse, unquote
 
     # Parse mssql+pymssql://user:pass@host:port/db format
     clean_dsn = dsn.replace("mssql+pymssql://", "mssql://")

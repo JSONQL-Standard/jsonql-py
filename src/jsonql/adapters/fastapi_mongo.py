@@ -41,9 +41,7 @@ def create_fastapi_mongo_router(
     async def _handle(request: Request, path: str = "") -> Any:
         try:
             raw_input = await _extract_raw_input(request)
-            result, status = await handler.process_request(
-                raw_input, request, request.method, path
-            )
+            result, status = await handler.process_request(raw_input, request, request.method, path)
             return _json_response(result, status)
         except AdapterError as exc:
             return _json_response({"error": str(exc)}, exc.status)

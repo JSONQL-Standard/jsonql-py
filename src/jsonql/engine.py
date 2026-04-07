@@ -89,9 +89,7 @@ class JsonQLEngine:
             elif self._executor:
                 rows = await self._executor(result.sql, result.args)
             else:
-                raise JsonQLExecutionError(
-                    "No executor or driver configured"
-                )
+                raise JsonQLExecutionError("No executor or driver configured")
         except JsonQLExecutionError:
             raise
         except Exception as exc:

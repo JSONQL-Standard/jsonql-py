@@ -197,9 +197,7 @@ class MongoTranspiler:
 
         return result
 
-    def _transpile_mutation(
-        self, mutation: JsonQLMutation, collection: str
-    ) -> MongoResult:
+    def _transpile_mutation(self, mutation: JsonQLMutation, collection: str) -> MongoResult:
         if not _is_valid_identifier(collection):
             raise JsonQLTranspileError(f"Invalid collection name: {collection}")
 
@@ -236,10 +234,23 @@ class MongoTranspiler:
 
         raise JsonQLTranspileError(f"Unknown mutation op: {mutation.op}")
 
-    _KNOWN_OPS = frozenset({
-        "eq", "ne", "neq", "gt", "gte", "lt", "lte",
-        "in", "nin", "like", "contains", "starts", "ends",
-    })
+    _KNOWN_OPS = frozenset(
+        {
+            "eq",
+            "ne",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "in",
+            "nin",
+            "like",
+            "contains",
+            "starts",
+            "ends",
+        }
+    )
 
     def _process_where(self, where: dict[str, Any]) -> dict[str, Any]:
         filt: dict[str, Any] = {}
@@ -248,14 +259,18 @@ class MongoTranspiler:
             # --- logical operators ---
             if field_name in ("or", "OR"):
                 if isinstance(cond, list):
-                    or_conditions = [self._process_where(item) for item in cond if isinstance(item, dict)]
+                    or_conditions = [
+                        self._process_where(item) for item in cond if isinstance(item, dict)
+                    ]
                     if or_conditions:
                         filt["$or"] = or_conditions
                 continue
 
             if field_name in ("and", "AND"):
                 if isinstance(cond, list):
-                    and_conditions = [self._process_where(item) for item in cond if isinstance(item, dict)]
+                    and_conditions = [
+                        self._process_where(item) for item in cond if isinstance(item, dict)
+                    ]
                     if and_conditions:
                         filt["$and"] = and_conditions
                 continue
@@ -267,9 +282,7 @@ class MongoTranspiler:
                 continue
 
             if not _is_valid_identifier(field_name):
-                raise JsonQLTranspileError(
-                    f"Invalid field name in where clause: {field_name}"
-                )
+                raise JsonQLTranspileError(f"Invalid field name in where clause: {field_name}")
 
             if isinstance(cond, dict):
                 # Validate operators
