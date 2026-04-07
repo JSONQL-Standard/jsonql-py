@@ -17,17 +17,22 @@
 
 ## Features
 
-- Pythonic `QueryBuilder` and `MutationBuilder` with condition helpers
-- `Parser` for JSONQL query validation
-- `SQLTranspiler` with dialect support (Postgres, MySQL, SQLite, MSSQL)
-- `MongoTranspiler` for MongoDB aggregation pipelines
-- `MongoDriver` for MongoDB execution
-- `ResultHydrator` for nested JSON reconstruction
-- `Validator` for schema-based field permission checking
-- `JsonQLEngine` with builder pattern for full pipeline
-- Async executor support
-- Framework adapters for **Flask**, **FastAPI**, and **Django** (SQL + MongoDB variants)
-- Type hints throughout (PEP 561)
+- **JSONQL v1.0 Parser** — parse and validate incoming JSON queries and mutations
+- **Query Builder** — Pythonic fluent API with `QueryBuilder`
+- **Mutation Builder** — fluent API for create / update / delete with `MutationBuilder`
+- **SQL Transpiler** — convert parsed queries → parameterized SQL (PostgreSQL, MySQL, SQLite, MSSQL)
+- **MongoDB Transpiler** — convert parsed queries → MongoDB aggregation pipelines
+- **MongoDB Driver** — `MongoDBDriver` for direct MongoDB execution
+- **Schema Validation** — permission checking and field-level validation
+- **Result Hydrator** — flatten SQL JOIN rows into nested JSON trees
+- **Driver Factory** — `create_driver()` with auto-config for Postgres, MySQL, SQLite, MSSQL
+- **Engine** — full pipeline class combining parser → validator → transpiler → execute → hydrate
+- **Condition Helpers** — `eq`, `gt`, `contains`, `and_`, `or_`, `not_`, etc.
+- **Flask Adapter** — blueprint with parse-only or full-lifecycle execution
+- **FastAPI Adapter** — router with parse-only or full-lifecycle execution
+- **Django Adapter** — view with parse-only or full-lifecycle execution
+- **MongoDB Adapters** — MongoDB variants for all three frameworks
+- **Type Hints** — PEP 561 compatible with full type coverage
 
 ## Installation
 
@@ -48,6 +53,56 @@ pip install jsonql-py[mysql]      # mysql-connector-python
 ```
 
 ## Quick Start
+
+A working JSONQL API in under 25 lines:
+
+```python
+# app.py
+from flask import Flask
+from jsonql import create_driver
+from jsonql.adapters import create_flask_blueprint, AdapterOptions
+from jsonql.types import JsonQLSchema, JsonQLTable, JsonQLField
+
+app = Flask(__name__)
+driver = create_driver("postgres")  # reads DB_DSN from env
+
+schema = JsonQLSchema(tables={
+    "users": JsonQLTable(fields={
+        "id":    JsonQLField(type="integer", filterable=True),
+        "name":  JsonQLField(type="string",  filterable=True, sortable=True),
+        "email": JsonQLField(type="string",  filterable=True),
+        "age":   JsonQLField(type="integer", filterable=True, sortable=True),
+    }),
+})
+
+bp = create_flask_blueprint(AdapterOptions(
+    driver=driver,
+    schema=schema,
+))
+app.register_blueprint(bp, url_prefix="/api")
+
+if __name__ == "__main__":
+    app.run(port=5000)
+```
+
+```bash
+export DB_DSN="postgresql://user:pass@localhost:5432/mydb"
+python app.py
+# * Running on http://127.0.0.1:5000
+```
+
+```bash
+curl -s 'http://localhost:5000/api/users?q={"fields":["id","name"],"where":{"age":{"gt":18}},"sort":{"name":"asc"},"limit":10}'
+```
+
+```json
+[
+  { "id": 1, "name": "Alice" },
+  { "id": 2, "name": "Bob" }
+]
+```
+
+## Builders
 
 ### Query Builder
 
@@ -89,7 +144,9 @@ mutation = (
 mutation = MutationBuilder().delete().where({"id": {"eq": 1}}).build()
 ```
 
-### Transpiler
+## Transpilers
+
+### SQL Transpiler
 
 ```python
 from jsonql import Parser, SQLTranspiler
@@ -110,7 +167,17 @@ print(result.sql)
 print(result.args)  # ['active']
 ```
 
-### Schema Validation
+### MongoDB Transpiler
+
+```python
+from jsonql import MongoTranspiler
+
+transpiler = MongoTranspiler()
+result = transpiler.transpile(query, "users")
+# {"collection": "users", "operation": "find", "filter": {"status": "active"}, ...}
+```
+
+## Schema Validation
 
 ```python
 from jsonql import Validator, JsonQLQuery
@@ -132,23 +199,37 @@ assert result.valid
 validator.validate_or_raise(JsonQLQuery(fields=["secret"]))
 ```
 
-### Engine (Full Pipeline)
+## Result Hydrator
 
 ```python
-from jsonql import JsonQLEngine
+from jsonql import ResultHydrator
+
+hydrator = ResultHydrator()
+
+# Flatten SQL JOIN rows into nested JSON
+rows = [
+    {"id": 1, "name": "Alice", "posts__id": 10, "posts__title": "Hello"},
+    {"id": 1, "name": "Alice", "posts__id": 11, "posts__title": "World"},
+]
+
+result = hydrator.hydrate(rows, schema, "users")
+# [{"id": 1, "name": "Alice", "posts": [{"id": 10, "title": "Hello"}, {"id": 11, "title": "World"}]}]
+```
+
+## Engine (Full Pipeline)
+
+```python
+from jsonql import JsonQLEngine, create_driver
 from jsonql.types import parse_schema
 
 schema = parse_schema({...})  # Your schema JSON
 
-async def run_sql(sql: str, params: list) -> list[dict]:
-    # Your database execution logic
-    ...
+driver = create_driver("postgres")  # reads DB_DSN from env
 
 engine = (
     JsonQLEngine.builder()
-    .postgres()
+    .driver(driver)
     .schema(schema)
-    .executor(run_sql)
     .build()
 )
 ```
@@ -157,29 +238,20 @@ engine = (
 
 ### Flask
 
-```python
-from flask import Flask
-from jsonql.adapters import create_flask_blueprint, AdapterOptions
-
-app = Flask(__name__)
-bp = create_flask_blueprint(AdapterOptions(
-    dialect="postgres",
-    execute=run_sql,
-    schema=my_schema,
-))
-app.register_blueprint(bp, url_prefix="/jsonql")
-```
+See [Quick Start](#quick-start) for a full Flask example with schema.
 
 ### FastAPI
 
 ```python
 from fastapi import FastAPI
+from jsonql import create_driver
 from jsonql.adapters import create_fastapi_router, AdapterOptions
 
 app = FastAPI()
+driver = create_driver("postgres")
+
 router = create_fastapi_router(AdapterOptions(
-    dialect="postgres",
-    execute=run_sql,
+    driver=driver,
     schema=my_schema,
 ))
 app.include_router(router, prefix="/jsonql")
@@ -190,11 +262,11 @@ app.include_router(router, prefix="/jsonql")
 ```python
 # urls.py
 from django.urls import path
+from jsonql import create_driver
 from jsonql.adapters import JsonQLDjangoView, AdapterOptions
 
-options = AdapterOptions(
-    dialect="postgres", execute=run_sql, schema=my_schema
-)
+driver = create_driver("postgres")
+options = AdapterOptions(driver=driver, schema=my_schema)
 
 urlpatterns = [
     path("jsonql/", JsonQLDjangoView.as_view(options=options)),
@@ -228,6 +300,7 @@ from jsonql.adapters import (
 | `MutationBuilder` | Fluent mutation construction |
 | `ResultHydrator` | Flatten SQL joins → nested JSON |
 | `JsonQLEngine` | Full pipeline with builder pattern |
+| `create_driver` | Factory for database drivers (Postgres, MySQL, SQLite, MSSQL) |
 | `DatabaseDriver` | Abstract database driver interface |
 
 ## Supported Dialects
