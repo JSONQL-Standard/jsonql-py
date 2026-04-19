@@ -1,7 +1,24 @@
 """Tests for the JSONQL query and mutation builders."""
 
 from jsonql import JsonQLMutation, JsonQLQuery, MutationBuilder, QueryBuilder
-from jsonql.conditions import and_, contains, eq, field, gt, is_in, or_
+from jsonql.conditions import (
+    and_,
+    contains,
+    ends_with,
+    eq,
+    field,
+    gt,
+    gte,
+    is_in,
+    like,
+    lt,
+    lte,
+    neq,
+    not_,
+    not_in,
+    or_,
+    starts_with,
+)
 
 
 class TestQueryBuilder:
@@ -70,6 +87,48 @@ class TestQueryBuilder:
         assert q2.from_table == ""
         assert q2.fields == []
 
+    def test_distinct_boolean(self) -> None:
+        q = QueryBuilder().from_table("users").select("name").distinct().build()
+        assert q.distinct is not None
+        assert q.distinct.all is True
+
+    def test_distinct_fields(self) -> None:
+        q = QueryBuilder().from_table("products").distinct(["category", "status"]).build()
+        assert q.distinct is not None
+        assert q.distinct.fields == ["category", "status"]
+
+    def test_distinct_with_where(self) -> None:
+        q = (
+            QueryBuilder()
+            .from_table("products")
+            .where(field("price", gt(10)))
+            .distinct(["category"])
+            .build()
+        )
+        assert q.distinct is not None
+        assert q.distinct.fields == ["category"]
+        assert q.where is not None
+
+    def test_complex_query(self) -> None:
+        q = (
+            QueryBuilder()
+            .from_table("orders")
+            .select("status")
+            .where(field("status", is_in("active", "pending")))
+            .group_by("status")
+            .aggregate({"total": {"sum": "amount"}})
+            .order_by("-total")
+            .limit(100)
+            .build()
+        )
+        assert q.from_table == "orders"
+        assert q.fields == ["status"]
+        assert q.where is not None
+        assert q.group_by == ["status"]
+        assert q.aggregate is not None
+        assert q.sort == ["-total"]
+        assert q.limit == 100
+
 
 class TestMutationBuilder:
     def test_create(self) -> None:
@@ -128,3 +187,31 @@ class TestConditions:
             field("b", eq(2)),
         )
         assert "or" in result
+
+    def test_neq(self) -> None:
+        assert neq("deleted") == {"neq": "deleted"}
+
+    def test_gte(self) -> None:
+        assert gte(10) == {"gte": 10}
+
+    def test_lt(self) -> None:
+        assert lt(5) == {"lt": 5}
+
+    def test_lte(self) -> None:
+        assert lte(100) == {"lte": 100}
+
+    def test_not_in(self) -> None:
+        assert not_in("a", "b") == {"nin": ["a", "b"]}
+
+    def test_like(self) -> None:
+        assert like("%test%") == {"like": "%test%"}
+
+    def test_starts_with(self) -> None:
+        assert starts_with("hello") == {"like": "hello%"}
+
+    def test_ends_with(self) -> None:
+        assert ends_with("world") == {"like": "%world"}
+
+    def test_not(self) -> None:
+        result = not_(field("status", eq("deleted")))
+        assert "not" in result
