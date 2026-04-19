@@ -133,9 +133,7 @@ class SQLTranspiler:
                 # Override SELECT to only the distinct fields when no explicit fields set
                 is_star = len(select_parts) == 1 and select_parts[0] == f"{q(table_name)}.*"
                 if not query.fields or is_star:
-                    select_parts = [
-                        f"{q(table_name)}.{q(f)}" for f in query.distinct.fields
-                    ]
+                    select_parts = [f"{q(table_name)}.{q(f)}" for f in query.distinct.fields]
 
         # Build FROM clause
         from_clause = q(table_name)
