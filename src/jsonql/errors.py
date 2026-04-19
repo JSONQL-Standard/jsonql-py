@@ -58,6 +58,6 @@ class AdapterError(JsonQLError):
             return statement
     """
 
-    def __init__(self, status: int, message: str) -> None:
-        super().__init__(message, "ADAPTER_ERROR")
+    def __init__(self, status: int, message: str, code: str = "ADAPTER_ERROR") -> None:
+        super().__init__(message, code)
         self.status = status

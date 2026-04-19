@@ -190,6 +190,7 @@ class BaseHandler:
                 if not validation.valid:
                     return {
                         "error": "Validation Error",
+                        "error_code": "VALIDATION_ERROR",
                         "details": [
                             {"code": e.code, "message": e.message, "path": e.path}
                             for e in validation.errors
@@ -223,7 +224,8 @@ class BaseHandler:
                     flat_rows = await self.options.execute(result.sql, result.args)
             except Exception as exc:
                 self.logger.error(f"[JSONQL] Execution error: {exc}")
-                return {"error": "Execution Error", "details": str(exc)}, 400
+                error_code = getattr(exc, "code", "EXECUTION_ERROR")
+                return {"error": "Execution Error", "error_code": error_code, "details": str(exc)}, 400
 
             # Mutation after-hooks
             if is_mut and isinstance(statement, JsonQLMutation):

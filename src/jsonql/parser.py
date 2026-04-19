@@ -85,6 +85,11 @@ class Parser:
             if key not in self._QUERY_KEYS:
                 raise ValueError(f'Unknown property "{key}" in query')
 
+        # Validate version
+        raw_version = raw.get("version")
+        if raw_version is not None and str(raw_version) not in ("1", "1.0", "1.1"):
+            raise ValueError("Invalid JSONQL Query")
+
         # Validate limit / skip
         raw_limit = raw.get("limit")
         if raw_limit is not None:

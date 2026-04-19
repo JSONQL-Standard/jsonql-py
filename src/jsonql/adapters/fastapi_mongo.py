@@ -44,9 +44,14 @@ def create_fastapi_mongo_router(
             result, status = await handler.process_request(raw_input, request, request.method, path)
             return _json_response(result, status)
         except AdapterError as exc:
-            return _json_response({"error": str(exc)}, exc.status)
+            resp = {"error": str(exc)}
+            if hasattr(exc, "code") and exc.code:
+                resp["error_code"] = exc.code
+            return _json_response(resp, exc.status)
         except (ValueError, TypeError, JsonQLError) as exc:
-            return _json_response({"error": str(exc)}, 400)
+            resp = {"error": str(exc)}
+            resp["error_code"] = getattr(exc, "code", None) or "PARSE_ERROR"
+            return _json_response(resp, 400)
         except Exception as exc:
             if handler.logger:
                 handler.logger.error(f"[JSONQL] Unhandled error: {exc}")

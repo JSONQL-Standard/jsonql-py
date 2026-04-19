@@ -81,9 +81,14 @@ class JsonQLDjangoMongoView:
                 )
                 return JsonResponse(result, status=status, safe=False)
             except AdapterError as exc:
-                return JsonResponse({"error": str(exc)}, status=exc.status)
+                resp = {"error": str(exc)}
+                if hasattr(exc, "code") and exc.code:
+                    resp["error_code"] = exc.code
+                return JsonResponse(resp, status=exc.status)
             except (ValueError, TypeError, JsonQLError) as exc:
-                return JsonResponse({"error": str(exc)}, status=400)
+                resp = {"error": str(exc)}
+                resp["error_code"] = getattr(exc, "code", None) or "PARSE_ERROR"
+                return JsonResponse(resp, status=400)
             except Exception as exc:
                 if handler.logger:
                     handler.logger.error(f"[JSONQL] Unhandled error: {exc}")

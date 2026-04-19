@@ -56,9 +56,14 @@ def create_flask_mongo_blueprint(
                 return jsonify(None), 200
             return jsonify(result), status
         except AdapterError as exc:
-            return jsonify({"error": str(exc)}), exc.status
+            resp = {"error": str(exc)}
+            if hasattr(exc, "code") and exc.code:
+                resp["error_code"] = exc.code
+            return jsonify(resp), exc.status
         except (ValueError, TypeError, JsonQLError) as exc:
-            return jsonify({"error": str(exc)}), 400
+            resp = {"error": str(exc)}
+            resp["error_code"] = getattr(exc, "code", None) or "PARSE_ERROR"
+            return jsonify(resp), 400
         except Exception as exc:
             if handler.logger:
                 handler.logger.error(f"[JSONQL] Unhandled error: {exc}")
