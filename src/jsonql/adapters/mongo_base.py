@@ -272,7 +272,9 @@ class MongoBaseHandler:
         except Exception as exc:
             self.logger.error(f"[JSONQL] Execution error: {exc}")
             error_code = getattr(exc, "code", "EXECUTION_ERROR")
-            return {"error": "Execution Error", "error_code": error_code, "details": str(exc)}, 400
+            resp = {"error": "Execution Error", "error_code": error_code}
+            resp["details"] = str(exc)
+            return resp, 400
 
         # 11. Mutation after-hooks
         if is_mut and isinstance(statement, JsonQLMutation):
