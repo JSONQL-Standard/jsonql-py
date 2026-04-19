@@ -84,6 +84,17 @@ class QueryBuilder:
         self._query.include = include
         return self
 
+    def distinct(self, value: bool | list[str] = True) -> QueryBuilder:
+        """Set DISTINCT selection.
+
+        Pass ``True`` for ``SELECT DISTINCT`` or a list of field names
+        for distinct on specific columns.
+        """
+        from .types import DistinctOption
+
+        self._query.distinct = DistinctOption.from_raw(value)
+        return self
+
     def build(self) -> JsonQLQuery:
         """Return the constructed ``JsonQLQuery``."""
         return self._query
