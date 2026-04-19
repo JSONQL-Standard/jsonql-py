@@ -129,12 +129,13 @@ class SQLTranspiler:
             if query.distinct.all:
                 distinct_kw = "DISTINCT "
             elif query.distinct.fields:
-                # DISTINCT ON is Postgres-specific; for others fall back to plain DISTINCT
-                if self.dialect.name() == "postgres":
-                    cols = ", ".join(f"{q(table_name)}.{q(f)}" for f in query.distinct.fields)
-                    distinct_kw = f"DISTINCT ON ({cols}) "
-                else:
-                    distinct_kw = "DISTINCT "
+                distinct_kw = "DISTINCT "
+                # Override SELECT to only the distinct fields when no explicit fields set
+                is_star = len(select_parts) == 1 and select_parts[0] == f"{q(table_name)}.*"
+                if not query.fields or is_star:
+                    select_parts = [
+                        f"{q(table_name)}.{q(f)}" for f in query.distinct.fields
+                    ]
 
         # Build FROM clause
         from_clause = q(table_name)

@@ -196,7 +196,9 @@ class TestPostgresTranspiler:
             fields=["id", "name"],
         )
         r = self.t.transpile(q, "users")
-        assert 'DISTINCT ON ("users"."name")' in r.sql
+        assert "DISTINCT" in r.sql
+        assert '"users"."id"' in r.sql
+        assert '"users"."name"' in r.sql
 
 
 class TestMySQLTranspiler:
