@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jsonql-py"
-version = "0.1.0"
+version = "1.1.0"
 description = "Python SDK for JSONQL — a JSON-based query language for SQL databases"
 readme = "README.md"
 license = "MIT"
