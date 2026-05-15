@@ -24,9 +24,9 @@ reporting in the affected repository:
 4. Include reproduction steps or a minimal proof of concept.
 5. Include impact details and any suggested mitigation, if known.
 
-If GitHub private reporting is unavailable, email security@jsonql.dev if it is
-configured, or contact the maintainer at law108000@gmail.com with the subject
-line `[SECURITY] JSONQL <repo>: <short summary>`.
+If GitHub private reporting is unavailable, report the issue by emailing
+security@jsonql.org with the subject line `[SECURITY] JSONQL <repo>: <short
+summary>`.
 
 ## Response Targets
 
