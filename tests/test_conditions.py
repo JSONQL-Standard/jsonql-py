@@ -1,12 +1,22 @@
 """Tests for the JSONQL condition helper functions."""
 
-import pytest
 from jsonql.conditions import (
-    eq, neq, gt, gte, lt, lte,
-    is_in, not_in,
-    like, contains, starts_with, ends_with,
+    and_,
+    contains,
+    ends_with,
+    eq,
     field,
-    and_, or_, not_,
+    gt,
+    gte,
+    is_in,
+    like,
+    lt,
+    lte,
+    neq,
+    not_,
+    not_in,
+    or_,
+    starts_with,
 )
 
 

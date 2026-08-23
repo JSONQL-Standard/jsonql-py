@@ -1,12 +1,11 @@
 """Tests for the JSONQL error types."""
 
-import pytest
 from jsonql.errors import (
-    JsonQLError,
-    JsonQLValidationError,
-    JsonQLTranspileError,
-    JsonQLExecutionError,
     AdapterError,
+    JsonQLError,
+    JsonQLExecutionError,
+    JsonQLTranspileError,
+    JsonQLValidationError,
 )
 from jsonql.types import ValidationError as ValidationErrorItem
 

@@ -1,19 +1,20 @@
 """Tests for the core JSONQL type definitions."""
 
 import pytest
+
 from jsonql.types import (
     DistinctOption,
-    JsonQLQuery,
-    JsonQLMutation,
-    is_mutation,
     JsonQLField,
+    JsonQLMutation,
+    JsonQLQuery,
     JsonQLRelation,
-    JsonQLTable,
-    JsonQLSettings,
     JsonQLSchema,
+    JsonQLSettings,
+    JsonQLTable,
     TranspileResult,
     ValidationError,
     ValidationResult,
+    is_mutation,
     parse_schema,
 )
 
