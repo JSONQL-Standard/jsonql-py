@@ -131,10 +131,12 @@ class TestLogicalConditions:
         assert result == {
             "and": [
                 {"age": {"gt": 18}},
-                {"or": [
-                    {"status": {"eq": "active"}},
-                    {"role": {"eq": "admin"}},
-                ]},
+                {
+                    "or": [
+                        {"status": {"eq": "active"}},
+                        {"role": {"eq": "admin"}},
+                    ]
+                },
             ],
         }
 
@@ -179,12 +181,7 @@ class TestIntegrationBuilderWithConditions:
     def test_simple_where(self):
         from jsonql import QueryBuilder
 
-        query = (
-            QueryBuilder()
-            .from_table("users")
-            .where(field("age", gt(18)))
-            .build()
-        )
+        query = QueryBuilder().from_table("users").where(field("age", gt(18))).build()
         assert query.from_table == "users"
         assert query.where == {"age": {"gt": 18}}
 
@@ -218,10 +215,12 @@ class TestIntegrationBuilderWithConditions:
             QueryBuilder()
             .from_table("products")
             .select("name", "price")
-            .where(and_(
-                field("price", gt(10)),
-                field("price", lt(100)),
-            ))
+            .where(
+                and_(
+                    field("price", gt(10)),
+                    field("price", lt(100)),
+                )
+            )
             .build()
         )
         assert query.fields == ["name", "price"]
